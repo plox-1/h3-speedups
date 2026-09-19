@@ -187,10 +187,15 @@ dialog::backdrop { background: rgba(15,15,15,.86); }
 .v-bar .switch { margin-left: auto; }
 .stage { overflow: auto; background: var(--pit); display: grid; gap: 2px; align-content: start; scrollbar-color: var(--rule) var(--pit); }
 .stage.pair { grid-template-columns: 1fr 1fr; }
+.stage.pair, .stage.stack { gap: 18px; }
 .stage figure { margin: 0; position: relative; min-width: 0; }
-.stage img, .stage video { display: block; width: 100%; height: auto; max-height: calc(96vh - 130px); object-fit: contain; background: var(--pit); }
+.stage img, .stage video { display: block; width: 100%; height: auto; max-height: calc(96vh - 172px); object-fit: contain; background: var(--pit); }
 .stage.stack img { max-height: none; }
-.stage figcaption { position: absolute; left: 0; top: 0; padding: 5px 10px 4px; background: rgba(24,24,24,.82); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+/* The band names its block in that block's ink and stays pinned while the block scrolls,
+   so in a tall stacked comparison you always know whether you are looking at the method or the baseline. */
+.stage figcaption { position: sticky; top: 0; z-index: 1; display: flex; align-items: baseline; gap: 14px; padding: 10px 16px 9px; background: var(--ground); border-top: 3px solid currentColor; }
+.stage figcaption b { font-size: 14px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.stage figcaption span { color: var(--dim); font-size: 14px; font-variant-numeric: tabular-nums; }
 .stage figcaption.me { color: var(--lime); } .stage figcaption.ref { color: var(--steel); }
 
 /* Narrow desktop: the figure stacks (numeral over seconds) so it always fits beside its bar. */
@@ -339,7 +344,7 @@ const ALL = [...DATA.rows, DATA.baseline];
 const BY_ID = Object.fromEntries(ALL.map(r => [r.id, r]));
 const DOMAIN = Math.max(...ALL.map(r => r.spd || 0)) * 1.5;      // fixed scale: bars never rescale between views
 
-const state = { view: "fastest", fam: "all", dead: false, adv: false, open: null, tab: "sheet", cmp: false };
+const state = { view: "fastest", fam: "all", dead: false, adv: false, open: null, tab: "sheet", cmp: true };
 
 /* ---- URL: every view is a link ---------------------------------------------------------- */
 function readHash() {
@@ -483,15 +488,15 @@ function render(animate = true) {
 
 /* ---- viewer ------------------------------------------------------------------------------- */
 const viewer = $("#viewer"), stage = $("#stage");
-function figure(src, kind, label, cls) {
+function figure(src, kind, label, cls, detail) {
   const f = el("figure");
+  if (label) f.appendChild(el("figcaption", cls, `<b>${esc(label)}</b><span>${esc(detail)}</span>`));
   if (kind === "clip") {
     const v = el("video"); v.src = src; v.loop = true; v.playsInline = true; v.preload = "auto";
     f.appendChild(v);
   } else {
     const i = el("img"); i.src = src; i.alt = label; f.appendChild(i);
   }
-  if (label) f.appendChild(el("figcaption", cls, esc(label)));
   return f;
 }
 function drawStage(play) {
@@ -501,8 +506,9 @@ function drawStage(play) {
   const paired = state.cmp && r.id !== "baseline" && base.media[kind];
   // wide sheets stack; the close-up and the clip sit side by side
   stage.className = "stage" + (paired ? (kind === "sheet" || kind === "hands" ? " stack" : " pair") : "");
-  stage.appendChild(figure(r.media[kind], kind, paired ? r.title : "", "me"));
-  if (paired) stage.appendChild(figure(base.media[kind], kind, "Baseline", "ref"));
+  // the dialog header already carries the method's tagline, so its band is just name + ratio
+  stage.appendChild(figure(r.media[kind], kind, paired ? r.title : "", "me", x(r.spd)));
+  if (paired) stage.appendChild(figure(base.media[kind], kind, "Baseline", "ref", `${x(base.spd)} · no speed-up`));
   if (kind === "clip") {
     const [main, ref] = stage.querySelectorAll("video");
     main.controls = true;
