@@ -186,7 +186,8 @@ dialog::backdrop { background: rgba(15,15,15,.86); }
 .tab { appearance: none; border: 0; background: transparent; color: var(--dim); padding: 12px 14px 10px; cursor: pointer; font-size: 15px; font-weight: 600; border-bottom: 2px solid transparent; }
 .tab:hover { color: var(--ink); }
 .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--lime); }
-.v-bar .switch { margin-left: auto; }
+.v-switches { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px 22px; }
+.switch[aria-disabled="true"] { opacity: .45; cursor: default; }
 .stage { overflow: auto; background: var(--pit); display: grid; gap: 2px; align-content: start; scrollbar-color: var(--rule) var(--pit); }
 .stage.pair { grid-template-columns: 1fr 1fr; }
 .stage.pair, .stage.stack { gap: 18px; }
@@ -199,6 +200,37 @@ dialog::backdrop { background: rgba(15,15,15,.86); }
 .stage figcaption b { font-size: 14px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
 .stage figcaption span { color: var(--dim); font-size: 14px; font-variant-numeric: tabular-nums; }
 .stage figcaption.me { color: var(--lime); } .stage figcaption.ref { color: var(--steel); }
+
+/* Wipe slider: the method is the full layer, the baseline lies over it clipped to the right of the divider.
+   Every row's media share exact dimensions per view, so the two layers register pixel for pixel.
+   The box is sized from the media's aspect ratio so it always fits the dialog without scrolling. */
+.stage.wiping { grid-template-columns: minmax(0, 1fr); }   /* a real track, so the 100% below means the stage and not the content */
+.wipe { --pos: 50%; --ar: 1.75; width: min(100%, calc((96vh - 236px) * var(--ar))); margin: 0 auto; min-width: 0; }
+.wipe-band { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 10px 16px 9px; background: var(--ground);
+  border-top: 3px solid; border-image: linear-gradient(to right, var(--lime) var(--pos), var(--steel) var(--pos)) 1; }
+.wipe-band > span { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.wipe-band b { font-size: 14px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wipe-band span span { color: var(--dim); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wipe-band .me b { color: var(--lime); } .wipe-band .ref b { color: var(--steel); }
+.wipe-box { position: relative; aspect-ratio: var(--ar); background: var(--pit); overflow: hidden; touch-action: pan-y; }
+.wipe-box > img, .wipe-box > video { position: absolute; inset: 0; width: 100%; height: 100%; max-height: none; object-fit: contain; }
+.wipe-box > .over { clip-path: inset(0 0 0 var(--pos)); }
+.wipe-range { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: ew-resize; z-index: 3; appearance: none; -webkit-appearance: none; background: transparent; }
+.wipe-range::-webkit-slider-thumb { -webkit-appearance: none; width: 44px; height: 100vh; }
+.wipe-range::-moz-range-thumb { width: 44px; height: 100vh; border: 0; }
+.wipe-handle { position: absolute; top: 0; bottom: 0; left: var(--pos); width: 4px; margin-left: -2px; z-index: 2; pointer-events: none;
+  background: linear-gradient(to right, rgba(0,0,0,.55) 0 1px, var(--ink) 1px 3px, rgba(0,0,0,.55) 3px 4px); }
+.wipe-handle .knob { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; display: grid; place-items: center; font-size: 18px;
+  background: var(--ground); color: var(--ink); border: 1.5px solid var(--ink); }
+.wipe-range:focus-visible ~ .wipe-handle .knob { outline: 2px solid var(--lime); outline-offset: 2px; }
+.wipe-ctl { display: flex; align-items: center; gap: 12px; padding: 8px 10px; background: var(--ground); }
+.wipe-ctl .v-btn { width: 34px; height: 34px; font-size: 16px; flex: none; }
+.wipe-ctl .time { color: var(--dim); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 9ch; text-align: right; }
+.scrub { flex: 1; min-width: 0; height: 22px; margin: 0; background: transparent; cursor: pointer; appearance: none; -webkit-appearance: none; }
+.scrub::-webkit-slider-runnable-track { height: 2px; background: var(--rule); }
+.scrub::-moz-range-track { height: 2px; background: var(--rule); }
+.scrub::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; margin-top: -5px; background: var(--ink); border: 0; border-radius: 0; }
+.scrub::-moz-range-thumb { width: 12px; height: 12px; background: var(--ink); border: 0; border-radius: 0; }
 
 /* Narrow desktop: the figure stacks (numeral over seconds) so it always fits beside its bar. */
 @media (max-width: 1240px) {
@@ -234,7 +266,7 @@ dialog::backdrop { background: rgba(15,15,15,.86); }
   .detail-body.cols { grid-template-columns: 1fr; }
   .v-head { flex-wrap: wrap; gap: 10px 16px; } .v-fig { margin-left: 0; } .v-nav { margin-left: auto; }
   .stage.pair { grid-template-columns: 1fr; }
-  .v-bar .switch { margin-left: 0; padding-bottom: 10px; }
+  .v-switches { margin-left: 0; padding-bottom: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -247,6 +279,11 @@ dialog::backdrop { background: rgba(15,15,15,.86); }
   <symbol id="i-prev" viewBox="0 0 16 16"><path d="M10 3L5 8l5 5"/></symbol>
   <symbol id="i-next" viewBox="0 0 16 16"><path d="M6 3l5 5-5 5"/></symbol>
   <symbol id="i-out" viewBox="0 0 16 16"><path d="M5 11l6-6M6 5h5v5"/></symbol>
+  <symbol id="i-wipe" viewBox="0 0 16 16"><path d="M6 4L2.5 8 6 12M10 4l3.5 4L10 12"/></symbol>
+  <symbol id="i-play" viewBox="0 0 16 16"><path d="M4.5 3v10l8-5z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 16 16"><path d="M5 3v10M11 3v10"/></symbol>
+  <symbol id="i-vol" viewBox="0 0 16 16"><path d="M2.5 6v4h2.5l3.5 3V3L5 6zM11 5.5c1 1.4 1 3.6 0 5M12.8 3.6c2 2.5 2 6.3 0 8.8"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 16 16"><path d="M2.5 6v4h2.5l3.5 3V3L5 6zM11 6l3.5 4M14.5 6L11 10"/></symbol>
 </svg>
 
 <div class="wrap">
@@ -312,7 +349,10 @@ dialog::backdrop { background: rgba(15,15,15,.86); }
   </div>
   <div class="v-bar">
     <div class="tabs" role="tablist" id="tabs"></div>
-    <label class="switch" id="cmp-wrap"><input type="checkbox" id="sw-cmp"><i></i>Compare with baseline</label>
+    <div class="v-switches">
+      <label class="switch" id="cmp-wrap"><input type="checkbox" id="sw-cmp"><i></i>Compare with baseline</label>
+      <label class="switch" id="wipe-wrap"><input type="checkbox" id="sw-wipe"><i></i>Slider</label>
+    </div>
   </div>
   <div class="stage" id="stage"></div>
 </dialog>
@@ -345,7 +385,8 @@ const ALL = [...DATA.rows, DATA.baseline];
 const BY_ID = Object.fromEntries(ALL.map(r => [r.id, r]));
 const DOMAIN = Math.max(...ALL.map(r => r.spd || 0)) * 1.5;      // fixed scale: bars never rescale between views
 
-const state = { view: "fastest", fam: "all", dead: false, adv: false, open: null, tab: "sheet", cmp: true };
+const state = { view: "fastest", fam: "all", dead: false, adv: false, open: null, tab: "sheet", cmp: true, wipe: false };
+const ASPECT = { sheet: 2.6196, hands: 3.5, closeup: 1.75, clip: 1.75 };   // refined from the media once it loads
 
 /* ---- URL: every view is a link ---------------------------------------------------------- */
 function readHash() {
@@ -500,19 +541,71 @@ function figure(src, kind, label, cls, detail) {
   }
   return f;
 }
+function buildWipe(r, base, kind) {
+  const wrap = el("div", "wipe");
+  wrap.style.setProperty("--ar", ASPECT[kind] || 1.75);
+  const media = (src, cls, label) => {
+    const m = el(kind === "clip" ? "video" : "img", cls); m.src = src;
+    if (kind === "clip") { m.loop = true; m.playsInline = true; m.preload = "auto"; } else m.alt = label;
+    return m;
+  };
+  const under = media(r.media[kind], "under", r.title), over = media(base.media[kind], "over", "Baseline");
+  under.addEventListener(kind === "clip" ? "loadedmetadata" : "load", () => {
+    const w = under.naturalWidth || under.videoWidth, h = under.naturalHeight || under.videoHeight;
+    if (w && h) wrap.style.setProperty("--ar", (w / h).toFixed(4));
+  });
+  const range = el("input", "wipe-range");
+  range.type = "range"; range.min = 0; range.max = 100; range.step = 0.1; range.value = 50;
+  range.setAttribute("aria-label", `Slide between ${r.title} on the left and the baseline on the right`);
+  range.addEventListener("input", () => wrap.style.setProperty("--pos", range.value + "%"));
+  const box = el("div", "wipe-box");
+  box.append(under, over, range, el("div", "wipe-handle", `<span class="knob"><svg class="icon"><use href="#i-wipe"/></svg></span>`));
+  wrap.append(el("div", "wipe-band",
+    `<span class="me"><b>${esc(r.title)}</b><span>${x(r.spd)}</span></span>` +
+    `<span class="ref"><span>${x(base.spd)} \u00b7 no speed-up</span><b>Baseline</b></span>`), box);
+  if (kind === "clip") wrap.append(el("div", "wipe-ctl",
+    `<button class="v-btn" data-act="play" aria-label="Pause"><svg class="icon"><use href="#i-pause"/></svg></button>` +
+    `<input class="scrub" type="range" min="0" max="1000" value="0" aria-label="Seek">` +
+    `<span class="time">0.0 / 0.0 s</span>` +
+    `<button class="v-btn" data-act="mute" aria-label="Mute"><svg class="icon"><use href="#i-vol"/></svg></button>`));
+  return wrap;
+}
+// The native controls would be cut by the divider, so the wipe view drives both clips from its own bar.
+function wireWipeControls(main) {
+  const bar = $(".wipe-ctl", stage), playBtn = $('[data-act="play"]', bar), muteBtn = $('[data-act="mute"]', bar);
+  const scrub = $(".scrub", bar), time = $(".time", bar);
+  const icon = (btn, id, label) => { $("use", btn).setAttribute("href", "#" + id); btn.setAttribute("aria-label", label); };
+  const paint = () => {
+    icon(playBtn, main.paused ? "i-play" : "i-pause", main.paused ? "Play" : "Pause");
+    icon(muteBtn, main.muted ? "i-mute" : "i-vol", main.muted ? "Unmute" : "Mute");
+  };
+  playBtn.addEventListener("click", () => { main.paused ? main.play().catch(() => {}) : main.pause(); });
+  muteBtn.addEventListener("click", () => { main.muted = !main.muted; paint(); });
+  scrub.addEventListener("input", () => { if (main.duration) main.currentTime = scrub.value / 1000 * main.duration; });
+  main.addEventListener("timeupdate", () => {
+    if (main.duration) { scrub.value = Math.round(main.currentTime / main.duration * 1000); time.textContent = `${main.currentTime.toFixed(1)} / ${main.duration.toFixed(1)} s`; }
+  });
+  ["play", "pause", "volumechange"].forEach(e => main.addEventListener(e, paint));
+  paint();
+}
 function drawStage(play) {
   const r = BY_ID[state.open], base = DATA.baseline, kind = state.tab;
   stage.querySelectorAll("video").forEach(v => v.pause());
   stage.innerHTML = "";
   const paired = state.cmp && r.id !== "baseline" && base.media[kind];
   // wide sheets stack; the close-up and the clip sit side by side
-  stage.className = "stage" + (paired ? (kind === "sheet" || kind === "hands" ? " stack" : " pair") : "");
-  // the dialog header already carries the method's tagline, so its band is just name + ratio
-  stage.appendChild(figure(r.media[kind], kind, paired ? r.title : "", "me", x(r.spd)));
-  if (paired) stage.appendChild(figure(base.media[kind], kind, "Baseline", "ref", `${x(base.spd)} · no speed-up`));
+  const wiping = paired && state.wipe;
+  stage.className = "stage" + (wiping ? " wiping" : paired ? (kind === "sheet" || kind === "hands" ? " stack" : " pair") : "");
+  if (wiping) stage.appendChild(buildWipe(r, base, kind));
+  else {
+    // the dialog header already carries the method's tagline, so its band is just name + ratio
+    stage.appendChild(figure(r.media[kind], kind, paired ? r.title : "", "me", x(r.spd)));
+    if (paired) stage.appendChild(figure(base.media[kind], kind, "Baseline", "ref", `${x(base.spd)} · no speed-up`));
+  }
   if (kind === "clip") {
     const [main, ref] = stage.querySelectorAll("video");
-    main.controls = true;
+    main.controls = !wiping;
+    if (wiping) wireWipeControls(main);
     if (ref) {                                   // the baseline follows along, silently
       ref.muted = true;
       main.addEventListener("play", () => ref.play().catch(() => {}));
@@ -539,6 +632,11 @@ function drawViewer(play = false) {
   }
   $("#cmp-wrap").hidden = r.id === "baseline";
   $("#sw-cmp").checked = state.cmp;
+  const canWipe = state.cmp && r.id !== "baseline";
+  $("#wipe-wrap").hidden = r.id === "baseline";
+  $("#wipe-wrap").setAttribute("aria-disabled", String(!canWipe));
+  $("#sw-wipe").disabled = !canWipe;
+  $("#sw-wipe").checked = state.wipe && canWipe;
   drawStage(play && state.tab === "clip");
 }
 function openViewer(id) {
@@ -560,7 +658,8 @@ viewer.addEventListener("keydown", e => {
 $("#v-close").addEventListener("click", () => viewer.close());
 $("#v-prev").addEventListener("click", () => step(-1));
 $("#v-next").addEventListener("click", () => step(1));
-$("#sw-cmp").addEventListener("change", e => { state.cmp = e.target.checked; drawStage(state.tab === "clip"); });
+$("#sw-cmp").addEventListener("change", e => { state.cmp = e.target.checked; drawViewer(state.tab === "clip"); });
+$("#sw-wipe").addEventListener("change", e => { state.wipe = e.target.checked; drawViewer(state.tab === "clip"); });
 
 /* ---- chrome ------------------------------------------------------------------------------- */
 $("#headline").textContent = DATA.meta.headline.replace(/-/g, "‑");
