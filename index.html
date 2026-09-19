@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MiniMax H3 speed-ups, measured</title>
+<meta name="description" content="Every known way to make MiniMax H3 render faster, measured on one RTX 5090 with the same prompt and seed. Each method shows its real frames and clip.">
+<style>
+@font-face {
+  font-family: "Archivo";
+  src: url("fonts/archivo-var-latin.woff2") format("woff2");
+  font-weight: 100 900; font-stretch: 62% 125%; font-display: swap;
+}
+:root {
+  /* Neutral grading-suite graphite: the page must never tint the footage it shows. */
+  --ground: #262626; --slab: #303030; --slab-up: #3a3a3a; --rule: #4c4c4c; --pit: #181818;
+  --ink: #ececec; --dim: #b7b7b7; --faint: #9c9c9c; --on-fill: #1c1c1c;
+  /* The four verdict inks carry all the colour on the page. */
+  --lime: #b9d64a; --amber: #f0a63a; --steel: #8fa3b8; --brick: #ea8a78;
+  --gap: 6px; --pad: clamp(16px, 3vw, 40px);
+  --ease: cubic-bezier(.16, 1, .3, 1);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--ground); scrollbar-color: var(--rule) var(--ground); }
+body {
+  margin: 0; color: var(--ink); background: var(--ground);
+  font: 400 15px/1.45 "Archivo", system-ui, sans-serif; font-stretch: 100%;
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+::selection { background: var(--lime); color: var(--on-fill); }
+:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+a { color: inherit; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+a:hover { color: var(--lime); }
+button { font: inherit; color: inherit; }
+.wrap { max-width: 1480px; margin: 0 auto; padding-inline: var(--pad); }
+.icon { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: square; vertical-align: -0.12em; }
+
+/* ---- masthead ---------------------------------------------------------------------------- */
+.mast { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 440px); gap: 28px 56px; align-items: end; padding-block: clamp(28px, 5vw, 56px) 26px; }
+h1 { margin: 0; font-weight: 800; font-stretch: 78%; font-size: clamp(34px, 4.6vw, 62px); line-height: .98; letter-spacing: -.015em; text-wrap: balance; }
+.lede { margin: 16px 0 0; max-width: 62ch; color: var(--dim); font-size: 17px; text-wrap: pretty; }
+.facts { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px 8px; }
+.facts li { padding: 3px 9px; background: var(--slab); color: var(--dim); font-size: 13px; font-variant-numeric: tabular-nums; }
+.disclose { margin: 12px 0 0; color: var(--dim); font-size: 13.5px; max-width: 46ch; }
+.disclose b { color: var(--ink); font-weight: 600; }
+
+/* ---- rail --------------------------------------------------------------------------------- */
+.rail { position: sticky; top: 0; z-index: 5; background: var(--ground); border-block: 1px solid var(--rule); }
+.rail-in { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; padding-block: 12px; }
+.presets { display: flex; gap: 0; }
+.preset { appearance: none; border: 1px solid var(--rule); background: transparent; cursor: pointer; padding: 9px 18px 8px; text-align: left; min-width: 138px; transition: background .18s var(--ease), color .18s var(--ease); }
+.preset + .preset { border-left: 0; }
+.preset b { display: block; font-weight: 700; font-stretch: 88%; font-size: 17px; letter-spacing: .005em; }
+.preset span { display: block; color: var(--faint); font-size: 12.5px; margin-top: 1px; }
+.preset:hover { background: var(--slab); }
+.preset[aria-pressed="true"] { background: var(--ink); color: var(--on-fill); border-color: var(--ink); }
+.preset[aria-pressed="true"] span { color: #4d4d4d; }
+.fams { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 18px; border-bottom: 1px solid var(--rule); }
+.fam { appearance: none; border: 0; background: transparent; color: var(--dim); cursor: pointer; padding: 8px 12px 9px; font-size: 14px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.fam:hover { color: var(--ink); }
+.fam[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--lime); }
+.switches { display: flex; gap: 20px; margin-left: auto; align-items: center; }
+.switch { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; font-size: 14px; color: var(--dim); user-select: none; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch i { width: 34px; height: 18px; border: 1px solid var(--faint); position: relative; flex: none; transition: background .18s var(--ease), border-color .18s var(--ease); }
+.switch i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; background: var(--faint); transition: transform .22s var(--ease), background .18s var(--ease); }
+.switch input:checked + i { background: var(--lime); border-color: var(--lime); }
+.switch input:checked + i::after { transform: translateX(16px); background: var(--on-fill); }
+.switch input:focus-visible + i { outline: 2px solid var(--lime); outline-offset: 3px; }
+.switch:hover, .switch:has(input:checked) { color: var(--ink); }
+.switch small { color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+/* ---- chart -------------------------------------------------------------------------------- */
+main { padding-block: 10px 56px; }
+.cols { display: grid; grid-template-columns: minmax(220px, 310px) minmax(0, 1fr) clamp(240px, 23vw, 340px); column-gap: 28px; }
+.axis { padding: 0 18px 8px; color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums; align-items: end; }
+.axis .count { color: var(--dim); }
+.ticks { position: relative; height: 18px; }
+.ticks span { position: absolute; bottom: 0; transform: translateX(-50%); white-space: nowrap; }
+.ticks span.base { color: var(--steel); font-weight: 600; }
+.axis .shot { text-align: right; }
+.chart { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--gap); }
+.row { background: var(--slab); padding: 13px 18px; align-items: center; position: relative; row-gap: 0; }
+.row[hidden] { display: none; }
+.title { margin: 0; font-size: 18px; font-weight: 650; font-stretch: 92%; line-height: 1.2; letter-spacing: .002em; }
+.tagline { margin: 2px 0 0; color: var(--dim); font-size: 14px; text-wrap: pretty; }
+.marks { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; }
+.stamp { display: inline-block; font-size: 10.5px; font-weight: 750; letter-spacing: .085em; text-transform: uppercase; line-height: 1; padding: 4px 6px 3px; border: 1.5px solid currentColor; white-space: nowrap; }
+.rating { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.pips { display: inline-flex; align-items: flex-end; gap: 3px; height: 16px; }
+.pips i { width: 6px; background: var(--ink); display: block; }
+.pips i[data-v="3"] { background: var(--amber); }
+.pips i[data-v="2"], .pips i[data-v="1"] { background: var(--brick); }
+.qsum { color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.flag { color: var(--brick); font-size: 12.5px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.track { position: relative; height: 58px; align-self: center;
+  background: linear-gradient(var(--rule), var(--rule)) calc(var(--base) * 50%) 0 / 1px 100% no-repeat,
+              linear-gradient(var(--rule), var(--rule)) calc(var(--base) * 150%) 0 / 1px 100% no-repeat; }
+.track::before { content: ""; position: absolute; left: calc(var(--base) * 100%); top: calc(-13px - var(--gap) / 2); bottom: calc(-13px - var(--gap) / 2); width: 1px; background: var(--steel); opacity: .75; z-index: 1; }
+.bar { position: absolute; left: 0; top: 12px; height: 34px; width: var(--w); background: var(--c); }
+.track, .fig { grid-column: 2; grid-row: 1; }
+.fig { justify-self: start; align-self: center; margin-left: calc(var(--w) + 14px); display: flex; align-items: baseline; gap: 10px; white-space: nowrap; position: relative; z-index: 2; }
+.fig b { font-weight: 800; font-stretch: 66%; font-size: 44px; line-height: 1; letter-spacing: -.01em; font-variant-numeric: tabular-nums lining-nums; }
+.fig span { color: var(--dim); font-size: 14px; font-variant-numeric: tabular-nums; }
+
+.strip { appearance: none; border: 0; padding: 0; background: var(--pit); cursor: zoom-in; display: block; width: 100%; aspect-ratio: 904 / 171; position: relative; overflow: hidden; }
+.strip img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .5s var(--ease), filter .3s var(--ease); }
+.strip:hover img, .strip:focus-visible img { transform: scale(1.035); }
+.nostrip { color: var(--faint); font-size: 13px; text-align: right; }
+
+/* verdict inks */
+.s-pass { --c: var(--lime); }      .s-pass .stamp { color: var(--lime); }
+.s-trade { --c: var(--amber); }    .s-trade .stamp { color: var(--amber); }
+.s-marginal { --c: var(--steel); } .s-marginal .stamp { color: var(--steel); }
+.s-baseline { --c: var(--steel); } .s-baseline .stamp { color: var(--steel); }
+.s-baseline { background: transparent; outline: 1px solid var(--rule); outline-offset: -1px; }
+/* Dead ends cancel, they do not vanish: hollow bar, struck name, dimmed frames. */
+.dead { --c: transparent; background: transparent; outline: 1px dashed var(--rule); outline-offset: -1px; }
+.dead .bar { border: 1.5px solid var(--faint); background: transparent; }
+.dead.s-fail .bar { border-color: var(--brick); }
+.dead .title { text-decoration: line-through; text-decoration-color: var(--faint); text-decoration-thickness: 1.5px; color: var(--dim); }
+.dead .fig b { color: var(--dim); }
+.dead .stamp { color: var(--faint); }
+.dead.s-fail .stamp { color: var(--brick); }
+.dead .strip img { filter: grayscale(.6) brightness(.8); }
+.dead .strip:hover img { filter: none; }
+.old .stamp.was { color: var(--faint); }
+.stamp.answer { background: var(--lime); border-color: var(--lime); color: var(--on-fill); display: none; }
+.is-answer .stamp.answer { display: inline-block; }
+.is-answer .stamp:not(.answer):not(.was) { display: none; }
+
+/* Advanced: one switch unfolds every row at once. */
+.detail { grid-column: 1 / -1; display: grid; grid-template-rows: 0fr; transition: grid-template-rows .5s var(--ease); }
+.detail-in { overflow: hidden; min-height: 0; }
+.adv .detail { grid-template-rows: 1fr; }
+.detail-body { margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--rule); }
+.detail-body > div { grid-column: 1 / 3; }
+.config { margin: 0 0 6px; font-weight: 600; font-size: 14px; }
+.note { margin: 0; color: var(--dim); font-size: 14px; max-width: 72ch; text-wrap: pretty; }
+.specs { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 16px; font-size: 13.5px; font-variant-numeric: tabular-nums; align-content: start; }
+.specs dt { color: var(--faint); } .specs dd { margin: 0; }
+.get { display: inline-flex; gap: 6px; align-items: center; margin-top: 10px; font-size: 14px; font-weight: 600; }
+
+/* Entering bars grow out of the baseline: the gain is the part that moves. */
+@keyframes grow { from { clip-path: inset(0 var(--hide) 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes ride { from { transform: translateX(var(--shift)); } to { transform: none; } }
+.enter .bar { animation: grow .9s var(--ease) both; animation-delay: var(--d, 0ms); }
+.enter .fig { animation: ride .9s var(--ease) both; animation-delay: var(--d, 0ms); }
+
+.empty { margin: 30px 18px; color: var(--dim); font-size: 16px; }
+.empty button { appearance: none; background: none; border: 0; border-bottom: 1px solid currentColor; padding: 0; cursor: pointer; color: var(--ink); }
+
+footer { border-top: 1px solid var(--rule); color: var(--dim); font-size: 14px; }
+.foot { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px 48px; padding-block: 26px 44px; }
+.foot p { margin: 0; max-width: 58ch; text-wrap: pretty; }
+.foot b { color: var(--ink); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.legend i { width: 18px; height: 10px; display: block; }
+
+/* ---- viewer ------------------------------------------------------------------------------- */
+dialog:focus { outline: none; }
+dialog { border: 0; padding: 0; color: var(--ink); background: var(--ground); width: min(1560px, 97vw); max-width: none; max-height: 96vh; overflow: hidden; box-shadow: 0 30px 80px -10px rgba(0,0,0,.7), 0 2px 8px rgba(0,0,0,.4); }
+dialog[open] { display: grid; grid-template-rows: auto auto minmax(0, 1fr); animation: lift .35s var(--ease); }
+dialog::backdrop { background: rgba(15,15,15,.86); }
+@keyframes lift { from { opacity: 0; transform: translateY(14px); } }
+.v-head { display: flex; align-items: center; gap: 22px; padding: 14px 18px; border-bottom: 1px solid var(--rule); }
+.v-head h2 { margin: 0; font-size: 20px; font-weight: 700; font-stretch: 90%; }
+.v-head p { margin: 1px 0 0; color: var(--dim); font-size: 14px; }
+.v-fig { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.v-fig b { font-weight: 800; font-stretch: 66%; font-size: 36px; line-height: 1; font-variant-numeric: tabular-nums; }
+.v-btn { appearance: none; border: 1px solid var(--rule); background: transparent; width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer; font-size: 18px; transition: background .15s var(--ease); }
+.v-btn:hover { background: var(--slab-up); }
+.v-nav { display: flex; gap: 0; } .v-nav .v-btn + .v-btn { border-left: 0; }
+.v-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px; padding: 0 18px; border-bottom: 1px solid var(--rule); }
+.tabs { display: flex; gap: 2px; }
+.tab { appearance: none; border: 0; background: transparent; color: var(--dim); padding: 12px 14px 10px; cursor: pointer; font-size: 15px; font-weight: 600; border-bottom: 2px solid transparent; }
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--lime); }
+.v-bar .switch { margin-left: auto; }
+.stage { overflow: auto; background: var(--pit); display: grid; gap: 2px; align-content: start; scrollbar-color: var(--rule) var(--pit); }
+.stage.pair { grid-template-columns: 1fr 1fr; }
+.stage figure { margin: 0; position: relative; min-width: 0; }
+.stage img, .stage video { display: block; width: 100%; height: auto; max-height: calc(96vh - 130px); object-fit: contain; background: var(--pit); }
+.stage.stack img { max-height: none; }
+.stage figcaption { position: absolute; left: 0; top: 0; padding: 5px 10px 4px; background: rgba(24,24,24,.82); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.stage figcaption.me { color: var(--lime); } .stage figcaption.ref { color: var(--steel); }
+
+/* Narrow desktop: the figure stacks (numeral over seconds) so it always fits beside its bar. */
+@media (max-width: 1240px) {
+  .cols { grid-template-columns: minmax(200px, 250px) minmax(0, 1fr) 250px; column-gap: 22px; }
+  .fig { flex-direction: column; align-items: flex-start; gap: 0; }
+  .fig b { font-size: 38px; } .fig span { font-size: 13px; }
+}
+/* Compact: name and ratio share the top line, the bar runs full width under them, frames below.
+   About 190px a row, so a phone shows four methods at a time and the sticky rail keeps the presets in reach. */
+@media (max-width: 1020px) {
+  .mast { grid-template-columns: 1fr; align-items: start; gap: 22px; }
+  h1 { font-size: clamp(30px, 8.6vw, 44px); }
+  .rail-in { gap: 8px 18px; padding-block: 8px; }
+  .presets { width: 100%; } .preset { flex: 1; min-width: 0; padding: 9px 8px 8px; text-align: center; }
+  .preset b { font-size: 15px; white-space: nowrap; } .preset span { display: none; }
+  .switches { margin-left: 0; gap: 18px; } .switch { font-size: 13.5px; }
+  .fams { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .fam { white-space: nowrap; }
+  .cols { grid-template-columns: minmax(0, 1fr) auto; column-gap: 14px; }
+  .axis .count, .axis .shot { display: none; }
+  .axis { padding: 0 14px 4px; } .ticks { grid-column: 1 / -1; }
+  .row { padding: 11px 14px 12px; row-gap: 8px; }
+  .who { grid-column: 1; grid-row: 1; }
+  .fig { grid-column: 2; grid-row: 1; margin-left: 0; justify-self: end; align-self: start; align-items: flex-end; flex-direction: column; gap: 0; }
+  .fig b { font-size: 32px; } .fig span { font-size: 12.5px; }
+  .track { grid-column: 1 / -1; grid-row: 2; height: 16px; }
+  .track::before { top: -3px; bottom: -3px; }
+  .bar { top: 0; height: 16px; }
+  .strip, .nostrip { grid-column: 1 / -1; grid-row: 3; max-width: 440px; }
+  .title { font-size: 17px; } .tagline { font-size: 13.5px; } .marks { margin-top: 6px; }
+  .enter .fig { animation: none; }
+  .detail-body > div { grid-column: auto; }
+  .detail-body.cols { grid-template-columns: 1fr; }
+  .v-head { flex-wrap: wrap; gap: 10px 16px; } .v-fig { margin-left: 0; } .v-nav { margin-left: auto; }
+  .stage.pair { grid-template-columns: 1fr; }
+  .v-bar .switch { margin-left: 0; padding-bottom: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-x" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 16 16"><path d="M10 3L5 8l5 5"/></symbol>
+  <symbol id="i-next" viewBox="0 0 16 16"><path d="M6 3l5 5-5 5"/></symbol>
+  <symbol id="i-out" viewBox="0 0 16 16"><path d="M5 11l6-6M6 5h5v5"/></symbol>
+</svg>
+
+<div class="wrap">
+  <header class="mast">
+    <div>
+      <h1 id="headline"></h1>
+      <p class="lede" id="lede"></p>
+    </div>
+    <div>
+      <ul class="facts" id="facts" aria-label="The test"></ul>
+      <p class="disclose"><b>Quality is an AI's rating of still frames.</b> Nobody has rated motion, lip sync or sound yet, so open a row and watch the clip.</p>
+    </div>
+  </header>
+</div>
+
+<nav class="rail" aria-label="Rank and show">
+  <div class="wrap rail-in">
+    <div class="presets" role="group" aria-label="Rank by">
+      <button class="preset" data-view="fastest"><b>Fastest</b><span>by speed-up</span></button>
+      <button class="preset" data-view="quality"><b>Best quality</b><span>by still-frame rating</span></button>
+      <button class="preset" data-view="balance"><b>Best balance</b><span>fastest that holds up</span></button>
+    </div>
+    <div class="switches">
+      <label class="switch"><input type="checkbox" id="sw-dead"><i></i>Dead ends <small id="n-dead"></small></label>
+      <label class="switch"><input type="checkbox" id="sw-adv"><i></i>Advanced</label>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap" id="main">
+  <div class="fams" role="group" aria-label="How it works" id="fams"></div>
+  <div class="axis cols" aria-hidden="true">
+    <div class="count" id="count"></div>
+    <div class="ticks" id="ticks"></div>
+    <div class="shot">click frames to enlarge, compare and play</div>
+  </div>
+  <ol class="chart" id="chart"></ol>
+  <p class="empty" id="empty" hidden><span id="empty-why"></span> <button id="empty-act"></button></p>
+  <noscript><p class="empty">This board needs JavaScript to draw the chart.</p></noscript>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div>
+      <p><b>Speed-up</b> is the baseline's render time divided by the method's, both measured in the same session on the same machine. Differences under about 5% are noise.</p>
+      <div class="legend" id="legend"></div>
+    </div>
+    <p><b>Five pips</b> rate one fixed test shot from its still frames: <span id="axes"></span>. Taller is better, 5 is indistinguishable from the baseline. Amber and red pips mark the weak spots.</p>
+    <p id="credit"></p>
+  </div>
+</footer>
+
+<dialog id="viewer" aria-labelledby="v-title" tabindex="-1">
+  <div class="v-head">
+    <div><h2 id="v-title"></h2><p id="v-tag"></p></div>
+    <div class="v-fig"><b id="v-num"></b><span class="stamp" id="v-stamp"></span></div>
+    <div class="v-nav">
+      <button class="v-btn" id="v-prev" aria-label="Previous method"><svg class="icon"><use href="#i-prev"/></svg></button>
+      <button class="v-btn" id="v-next" aria-label="Next method"><svg class="icon"><use href="#i-next"/></svg></button>
+      <button class="v-btn" id="v-close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+    </div>
+  </div>
+  <div class="v-bar">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <label class="switch" id="cmp-wrap"><input type="checkbox" id="sw-cmp"><i></i>Compare with baseline</label>
+  </div>
+  <div class="stage" id="stage"></div>
+</dialog>
+
+<script>
+const DATA = {"meta": {"headline": "MiniMax H3 speed-ups, measured", "lede": "Every known way to make MiniMax H3 render faster, run on one RTX 5090 with the same prompt and seed. Each row shows its real frames and clip.", "setup": ["RTX 5090, 32 GB", "1344 x 768", "124 frames, 5.2 s", "6 steps, seed 1", "same prompt every row"], "axes": ["Prompt", "Identity", "Hands", "Hair + rain", "Close-up"], "repo": "", "generated": "2026-09-19", "exact": "Baseline: MiniMaxH3-T2V.json as saved -- 1344x768 (0.98 MP), 124 frames / 5.17 s, 6 steps euler/simple, minimax_h3_fl2va_int8_convrot.safetensors + minimax_h3_fl2v_lightx2v_turbo_4to8step_v0.1-v1.0_768p_v4_step600_dareties.safetensors @ 0.90, minimax_h3_video_vae_int8_convrot.safetensors, 37,815 tokens, --use-ck-attention --vram-headroom 1. n = 5 clean warm runs per row, seeds 13-16 + 1, runs 1-2 discarded as warm-up."}, "baseline": {"id": "baseline", "title": "Baseline", "tagline": "No speed-up: the workflow as saved", "name": "Comfy Kitchen int8 dense (control)", "note": "Baseline: MiniMaxH3-T2V.json as saved -- 1344x768 (0.98 MP), 124 frames / 5.17 s, 6 steps euler/simple, minimax_h3_fl2va_int8_convrot.safetensors + minimax_h3_fl2v_lightx2v_turbo_4to8step_v0.1-v1.0_768p_v4_step600_dareties.safetensors @ 0.90, minimax_h3_video_vae_int8_convrot.safetensors, 37,815 tokens, --use-ck-attention --vram-headroom 1. n = 5 clean warm runs per row, seeds 13-16 + 1, runs 1-2 discarded as warm-up.", "mech": "reference", "family": "other", "url": null, "steps": 6, "sampler": 43.7, "total": 55.8, "ctlTotal": 55.8, "ctlSampler": 43.7, "spd": 1.0, "spdSampler": 1.0, "q": null, "qsum": null, "qmin": null, "state": "baseline", "dead": false, "hidden": false, "session": "W2", "date": "2026-09-19 00:00-03:00", "n": null, "outliers": 0, "audioPeak": -13.6, "media": {"sheet": "media/baseline/sheet.jpg", "strip": "media/baseline/strip.jpg", "hands": "media/baseline/hands.jpg", "closeup": "media/baseline/closeup.jpg", "clip": "media/baseline/clip.mp4"}}, "rows": [{"id": "0022a", "title": "TaoMate 3-step LoRA", "tagline": "Fastest here, but the rain disappears", "name": "TaoMate-H3 3-step LoRA (strength 0.8)", "note": "Fastest row on the board. Replaces the turbo LoRA (kijai's ComfyUI conversion). Staging and hair are right, but the light rain is nearly gone -- no droplets on the face, no visible streaks -- and skin micro-texture is smoothed. AUDIO CLIPS: peak -0.0 dB against the control's -13.6, mean -18.2 vs -31.5. A different LoRA means a different look by design, so judge the shot, not the grade.", "mech": "fewer steps (distillation)", "family": "steps", "url": "https://huggingface.co/Kijai/MiniMax-H3_comfy", "steps": 3, "sampler": 20.9, "total": 32.7, "ctlTotal": 55.8, "ctlSampler": 43.7, "spd": 1.7064220183486236, "spdSampler": 2.0909090909090913, "q": [4, 5, 5, 3, 4], "qsum": 21, "qmin": 3, "state": "trade", "dead": false, "hidden": false, "session": "W2", "date": "2026-09-19 00:00-03:00", "n": 5, "outliers": 0, "audioPeak": -0.0, "media": {"sheet": "media/0022a/sheet.jpg", "strip": "media/0022a/strip.jpg", "hands": "media/0022a/hands.jpg", "closeup": "media/0022a/closeup.jpg", "clip": "media/0022a/clip.mp4"}}, {"id": "0018b", "title": "Spectrum, final step forecast", "tagline": "Forecasting the last step breaks the frame", "name": "Spectrum, tail_actual_steps 0 (3 of 6 forecast)", "note": "Freeing the final step buys a third forecast AND skips Spectrum's second pass ('no future actual anchor'), so it is much the fastest Spectrum setting -- and it breaks the picture: dense blue speckle over every frame, the wrists never form the X, fingers smear. Audio peak -0.4 dB. This is where forecasting breaks: the last step is the one that sets fine detail.", "mech": "fewer model calls (forecasting)", "family": "calls", "url": "https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3", "steps": 6, "sampler": 26.4, "total": 36.2, "ctlTotal": 55.8, "ctlSampler": 43.7, "spd": 1.5414364640883975, "spdSampler": 1.6553030303030305, "q": [3, 4, 2, 2, 3], "qsum": 14, "qmin": 2, "state": "fail", "dead": true, "hidden": false, "session": "W2", "date": "2026-09-19 00:00-03:00", "n": 5, "outliers": 0, "audioPeak": -0.4, "media": {"sheet": "media/0018b/sheet.jpg", "strip": "media/0018b/strip.jpg", "hands": "media/0018b/hands.jpg", "closeup": "media/0018b/closeup.jpg", "clip": "media/0018b/clip.mp4"}}, {"id": "0017b", "title": "SPEED, 3 resolution stages", "tagline": "Flawless render, but it redraws the subject", "name": "SPEED progressive resolution, 3 stages (d 0.01)", "note": "2 steps at 1/3 scale (1.9 s, 0.4 s), 1 at 2/3 (2.0 s), 3 at full. Rendering is excellent -- sharp, no speckle, droplets on skin, clean X-cross -- but the CONTENT drifts: shaved pate + topknot instead of the prompt's full head of long hair, and a more symmetric framing. A composition-drift mechanism, not a detail-loss one.", "mech": "fewer tokens (progressive resolution)", "family": "tokens", "url": "https://github.com/StanLukuvka/ComfyUI-MiniMax-H3-SPEED", "steps": 6, "sampler": 26.6, "total": 37.7, "ctlTotal": 55.8, "ctlSampler": 43.7, "spd": 1.4801061007957559, "spdSampler": 1.6428571428571428, "q": [3, 5, 5, 4, 5], "qsum": 22, "qmin": 3, "state": "trade", "dead": false, "hidden": false, "session": "W2", "date": "2026-09-19 00:00-03:00", "n": 5, "outliers": 0, "audioPeak": -11.4, "media": {"sheet": "media/0017b/sheet.jpg", "strip": "media/0017b/strip.jpg", "hands": "media/0017b/hands.jpg", "closeup": "media/0017b/closeup.jpg", "clip": "media/0017b/clip.mp4"}}, {"id": "0019b", "title": "MotionCache, tuned", "tagline": "Reuses 2 of 6 steps and keeps the detail", "name": "MotionCache, threshold 0.95 + warmup 2 (2 of 6 reused)", "note": "The best quality-per-speed row of the wave. Same 2-of-6 call budget as EasyCache 0.65 in 0016, which lost the facial rain droplets and softened detail -- motion weighting keeps them. Full long hair, clean X-cross, crisp roof tiles. Needs two inputs off their defaults to fire at all.", "mech": "reuse cache (motion-weighted)", "family": "cache", "url": "https://github.com/Mozer/ComfyUI-MiniMax-H3-MotionCache-FastVAE", "steps": 6, "sampler": 31.2, "total": 40.9, "ctlTotal": 55.8, "ctlSampler": 43.7, "spd": 1.3643031784841075, "spdSampler": 1.4006410256410258, "q": [5, 5, 5, 5, 5], "qsum": 25, "qmin": 5, "state": "pass", "dead": false, "hidden": false, "session": "W2", "date": "2026-09-19 00:00-03:00", "n": 5, "outliers": 0, "audioPeak": -12.5, "media": {"sheet": "media/0019b/sheet.jpg", "strip": "media/0019b/strip.jpg", "hands": "media/0019b/hands.jpg", "closeup": "media/0019b/closeup.jpg", "clip": "media/0019b/clip.mp4"}}, {"id": "0022b", "title": "TaoMate LoRA at 4 steps", "tagline": "One extra step brings the rain back", "name": "TaoMate-H3 3-step LoRA at 4 steps (strength 0.8)", "note": "One step above the LoRA's stated minimum, the same judgement that runs the 4to8step turbo LoRA at 6. That one step buys back the rain (droplets on the face, faint streaks) and moves the row from BORDERLINE to PASS, for 8 s. Audio still hot at -1.5 dB peak.", "mech": "fewer steps (distillation)", "family": "steps", "url": "https://huggingface.co/Kijai/MiniMax-H3_comfy", "steps": 4, "sampler": 28.6, "total": 40.6, "ctlTotal": 55.8, "ctlSampler": 43.7, "spd": 1.374384236453202, "spdSampler": 1.527972027972028, "q": [4, 5, 5, 4, 4], "qsum": 22, "qmin": 4, "state": "pass", "dead": false, "hidden": false, "session": "W2", "date": "2026-09-19 00:00-03:00", "n": 5, "outliers": 0, "audioPeak": -1.5, "media": {"sheet": "media/0022b/sheet.jpg", "strip": "media/0022b/strip.jpg", "hands": "media/0022b/hands.jpg", "closeup": "media/0022b/closeup.jpg", "clip": "media/0022b/clip.mp4"}}, {"id": "0018c", "title": "Spectrum, single pass", "tagline": "Forecasts 2 of 6 steps, no visible loss", "name": "Spectrum, offline_smoothing_replay off (single pass)", "note": "A free ~6% on the best method already on the board. Spectrum's default runs a SECOND sampler pass (the 12 progress events instead of 6); switching it off keeps the same 2-of-6 forecast schedule and the same picture. 1 of 5 runs was an outlier (35.5 s first step = a weight re-stage), excluded.", "mech": "fewer model calls (forecasting)", "family": "calls", "url": "https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3", "steps": 6, "sampler": 34.849999999999994, "total": 44.15, "ctlTotal": 55.8, "ctlSampler": 43.7, "spd": 1.2638731596828991, "spdSampler": 1.253945480631277, "q": [5, 5, 5, 5, 5], "qsum": 25, "qmin": 5, "state": "pass", "dead": false, "hidden": false, "session": "W2", "date": "2026-09-19 00:00-03:00", "n": 4, "outliers": 1, "audioPeak": -11.5, "media": {"sheet": "media/0018c/sheet.jpg", "strip": "media/0018c/strip.jpg", "hands": "media/0018c/hands.jpg", "closeup": "media/0018c/closeup.jpg", "clip": "media/0018c/clip.mp4"}}, {"id": "0017a", "title": "SPEED, 2 resolution stages", "tagline": "Same drift as 3 stages, less of it", "name": "SPEED progressive resolution, 2 stages (d 0.005)", "note": "First 2 of 6 steps at half linear resolution (a quarter of the tokens), then DCT-expanded to full. Same clean rendering and same topknot drift as the 3-stage row, less of both. NEW mechanism for this project and the only one here that is orthogonal to every other row -- the C03 stacking candidate.", "mech": "fewer tokens (progressive resolution)", "family": "tokens", "url": "https://github.com/StanLukuvka/ComfyUI-MiniMax-H3-SPEED", "steps": 6, "sampler": 34.0, "total": 44.3, "ctlTotal": 55.8, "ctlSampler": 43.7, "spd": 1.2595936794582392, "spdSampler": 1.285294117647059, "q": [3, 5, 5, 4, 5], "qsum": 22, "qmin": 3, "state": "trade", "dead": false, "hidden": false, "session": "W2", "date": "2026-09-19 00:00-03:00", "n": 5, "outliers": 0, "audioPeak": -13.8, "media": {"sheet": "media/0017a/sheet.jpg", "strip": "media/0017a/strip.jpg", "hands": "media/0017a/hands.jpg", "closeup": "media/0017a/closeup.jpg", "clip": "media/0017a/clip.mp4"}}, {"id": "0018a", "title": "Spectrum, default settings", "tagline": "Its hidden second pass costs about 6%", "name": "Spectrum at its default schedule (2 of 6 forecast)", "note": "Labelled window_size 3.0, but the realised schedule is byte-for-byte Spectrum's default (A F A F A A) -- so this row doubles as the in-session re-measurement of experiment 0012. window_size cannot buy a third forecast: sampling.py hardcodes max_consecutive_forecasts=1 and min_actual_steps_after_forecast=1 for euler.", "mech": "fewer model calls (forecasting)", "family": "calls", "url": "https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3", "steps": 6, "sampler": 37.6, "total": 47.0, "ctlTotal": 55.8, "ctlSampler": 43.7, "spd": 1.1872340425531915, "spdSampler": 1.1622340425531916, "q": [5, 5, 5, 5, 5], "qsum": 25, "qmin": 5, "state": "pass", "dead": false, "hidden": false, "session": "W2", "date": "2026-09-19 00:00-03:00", "n": 5, "outliers": 0, "audioPeak": -11.9, "media": {"sheet": "media/0018a/sheet.jpg", "strip": "media/0018a/strip.jpg", "hands": "media/0018a/hands.jpg", "closeup": "media/0018a/closeup.jpg", "clip": "media/0018a/clip.mp4"}}, {"id": "0016c", "title": "Block Cache T8, tuned", "tagline": "Caches 3 of 6 steps; close-up skin turns scaly", "name": "MiniMax H3 Block Cache T8, threshold 0.42 (tuned)", "note": "caches 3 of 6 forwards (0.2 s each); close-up skin takes on a scaly cross-hatch", "mech": "reuse cache (first-block)", "family": "cache", "url": "https://github.com/T8mars/comfyui-minimax-h3-blockcache-T8", "steps": 6, "sampler": 24.5, "total": 33.9, "ctlTotal": 55.9, "ctlSampler": 46.0, "spd": 1.648967551622419, "spdSampler": 1.8775510204081634, "q": [5, 5, 4, 4, 3], "qsum": 21, "qmin": 3, "state": "trade", "dead": false, "hidden": false, "session": "0015", "date": "2026-09-18 22:00-22:40", "n": 5, "outliers": 0, "audioPeak": -8.3, "media": {"sheet": "media/0016c/sheet.jpg", "strip": "media/0016c/strip.jpg", "hands": "media/0016c/hands.jpg", "closeup": "media/0016c/closeup.jpg", "clip": "media/0016c/clip.mp4"}}, {"id": "0016a", "title": "EasyCache, tuned", "tagline": "Reuses 2 of 6 steps; fine detail softens", "name": "EasyCache, reuse_threshold 0.65 (tuned)", "note": "forced to fire: reuses 2 of 6 forwards; detail softens, facial rain droplets lost. Compare with MotionCache 0019b at the SAME budget, which keeps them", "mech": "reuse cache", "family": "cache", "url": "https://github.com/Comfy-Org/ComfyUI", "steps": 6, "sampler": 31.1, "total": 41.0, "ctlTotal": 55.9, "ctlSampler": 46.0, "spd": 1.3634146341463413, "spdSampler": 1.4790996784565915, "q": [5, 5, 4, 4, 4], "qsum": 22, "qmin": 4, "state": "trade", "dead": false, "hidden": false, "session": "0015", "date": "2026-09-18 22:00-22:40", "n": 5, "outliers": 0, "audioPeak": -9.2, "media": {"sheet": "media/0016a/sheet.jpg", "strip": "media/0016a/strip.jpg", "hands": "media/0016a/hands.jpg", "closeup": "media/0016a/closeup.jpg", "clip": "media/0016a/clip.mp4"}}, {"id": "0016b", "title": "LazyCache, tuned", "tagline": "Same trade as EasyCache", "name": "LazyCache, reuse_threshold 0.80 (tuned)", "note": "same idea at predict_noise; 2 of 6 reused, same softening", "mech": "reuse cache", "family": "cache", "url": "https://github.com/Comfy-Org/ComfyUI", "steps": 6, "sampler": 31.4, "total": 40.9, "ctlTotal": 55.9, "ctlSampler": 46.0, "spd": 1.3667481662591687, "spdSampler": 1.4649681528662422, "q": [5, 5, 4, 4, 4], "qsum": 22, "qmin": 4, "state": "trade", "dead": false, "hidden": false, "session": "0015", "date": "2026-09-18 22:00-22:40", "n": 5, "outliers": 0, "audioPeak": -7.1, "media": {"sheet": "media/0016b/sheet.jpg", "strip": "media/0016b/strip.jpg", "hands": "media/0016b/hands.jpg", "closeup": "media/0016b/closeup.jpg", "clip": "media/0016b/clip.mp4"}}, {"id": "0008", "title": "FastH3 v1, 4 steps", "tagline": "Fast, but over-sharpened and waxy", "name": "FastH3 v1, 4 steps, VSA", "note": "over-sharpened HDR look, waxy skin, wardrobe drift", "mech": "fewer steps (distillation) + sparse attention", "family": "steps", "url": "https://huggingface.co/Kijai/MiniMax-H3-experimental", "steps": 4, "sampler": 23.4, "total": 32.6, "ctlTotal": 55.0, "ctlSampler": 45.6, "spd": 1.687116564417178, "spdSampler": 1.948717948717949, "q": [4, 4, 4, 4, 3], "qsum": 19, "qmin": 3, "state": "trade", "dead": false, "hidden": false, "session": "C01", "date": "2026-09-18 19:03-21:10", "n": 5, "outliers": 0, "audioPeak": -8.6, "media": {"sheet": "media/0008/sheet.jpg", "strip": "media/0008/strip.jpg", "hands": "media/0008/hands.jpg", "closeup": "media/0008/closeup.jpg", "clip": "media/0008/clip.mp4"}}, {"id": "0015a", "title": "Sparse attention, sol_attn", "tagline": "Skips most attention blocks, no visible loss", "name": "H3SparseAttention sol_attn, tau 1.3, dense_start 0.1", "note": "the node's new default: ONE of six steps dense (50 dense fall-throughs)", "mech": "cheaper attention (block-sparse)", "family": "attention", "url": null, "steps": 6, "sampler": 35.7, "total": 45.2, "ctlTotal": 55.9, "ctlSampler": 46.0, "spd": 1.236725663716814, "spdSampler": 1.2885154061624648, "q": [5, 5, 5, 5, 5], "qsum": 25, "qmin": 5, "state": "pass", "dead": false, "hidden": false, "session": "0015", "date": "2026-09-18 22:00-22:40", "n": 5, "outliers": 0, "audioPeak": -10.7, "media": {"sheet": "media/0015a/sheet.jpg", "strip": "media/0015a/strip.jpg", "hands": "media/0015a/hands.jpg", "closeup": "media/0015a/closeup.jpg", "clip": "media/0015a/clip.mp4"}}, {"id": "0012", "title": "Spectrum, first measurement", "tagline": "Re-measured later as 'Spectrum, default settings'", "name": "Spectrum (feature forecasting)", "note": "4 real model calls at ~7.7 s + 2 forecast (A F A F A A) -- s/step is the average of the six. Re-measured as 0018a in session W2", "mech": "fewer model calls (forecasting)", "family": "calls", "url": "https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3", "steps": 6, "sampler": 36.8, "total": 45.7, "ctlTotal": 55.0, "ctlSampler": 45.6, "spd": 1.2035010940919038, "spdSampler": 1.2391304347826089, "q": [5, 5, 5, 5, 5], "qsum": 25, "qmin": 5, "state": "pass", "dead": false, "hidden": true, "session": "C01", "date": "2026-09-18 19:03-21:10", "n": 5, "outliers": 0, "audioPeak": -11.9, "media": {"sheet": "media/0012/sheet.jpg", "strip": "media/0012/strip.jpg", "hands": "media/0012/hands.jpg", "closeup": "media/0012/closeup.jpg", "clip": "media/0012/clip.mp4"}}, {"id": "0015b", "title": "Sparse attention, two dense steps", "tagline": "The node's old default, superseded", "name": "H3SparseAttention sol_attn, tau 1.3, dense_start 0.2", "note": "the old default: TWO of six steps dense (100 fall-throughs) -- superseded by 0.1", "mech": "cheaper attention (block-sparse)", "family": "attention", "url": null, "steps": 6, "sampler": 38.5, "total": 47.9, "ctlTotal": 55.9, "ctlSampler": 46.0, "spd": 1.1670146137787056, "spdSampler": 1.1948051948051948, "q": [5, 5, 4, 5, 5], "qsum": 24, "qmin": 4, "state": "pass", "dead": false, "hidden": true, "session": "0015", "date": "2026-09-18 22:00-22:40", "n": 5, "outliers": 0, "audioPeak": -10.3, "media": {"sheet": "media/0015b/sheet.jpg", "strip": "media/0015b/strip.jpg", "hands": "media/0015b/hands.jpg", "closeup": "media/0015b/closeup.jpg", "clip": "media/0015b/clip.mp4"}}, {"id": "0015d", "title": "Sparse attention, triton", "tagline": "Closest to the original in stills", "name": "H3SparseAttention triton, sparsity 0.85, dense_start 0.1", "note": "bf16 top-k kernel, 103/597 blocks kept; new default, one dense step", "mech": "cheaper attention (block-sparse)", "family": "attention", "url": null, "steps": 6, "sampler": 39.8, "total": 49.5, "ctlTotal": 55.9, "ctlSampler": 46.0, "spd": 1.1292929292929292, "spdSampler": 1.155778894472362, "q": [5, 5, 5, 5, 5], "qsum": 25, "qmin": 5, "state": "pass", "dead": false, "hidden": false, "session": "0015", "date": "2026-09-18 22:00-22:40", "n": 5, "outliers": 0, "audioPeak": -10.5, "media": {"sheet": "media/0015d/sheet.jpg", "strip": "media/0015d/strip.jpg", "hands": "media/0015d/hands.jpg", "closeup": "media/0015d/closeup.jpg", "clip": "media/0015d/clip.mp4"}}, {"id": "0004", "title": "Sparse attention, sol_attn (first run)", "tagline": "Superseded by the one-dense-step setting", "name": "H3SparseAttention sol_attn, tau 1.3, dense_start 0.2", "note": "first measurement of the node, C01 session", "mech": "cheaper attention (block-sparse)", "family": "attention", "url": null, "steps": 6, "sampler": 39.3, "total": 48.7, "ctlTotal": 55.0, "ctlSampler": 45.6, "spd": 1.1293634496919918, "spdSampler": 1.1603053435114505, "q": [5, 5, 4, 5, 5], "qsum": 24, "qmin": 4, "state": "pass", "dead": false, "hidden": true, "session": "C01", "date": "2026-09-18 19:03-21:10", "n": 5, "outliers": 0, "audioPeak": -10.3, "media": {"sheet": "media/0004/sheet.jpg", "strip": "media/0004/strip.jpg", "hands": "media/0004/hands.jpg", "closeup": "media/0004/closeup.jpg", "clip": "media/0004/clip.mp4"}}, {"id": "0005", "title": "Sparse attention, triton (first run)", "tagline": "Superseded by the one-dense-step setting", "name": "H3SparseAttention triton, sparsity 0.85, dense_start 0.2", "note": "closest to the control in stills", "mech": "cheaper attention (block-sparse)", "family": "attention", "url": null, "steps": 6, "sampler": 40.8, "total": 50.5, "ctlTotal": 55.0, "ctlSampler": 45.6, "spd": 1.0891089108910892, "spdSampler": 1.1176470588235294, "q": [5, 5, 5, 5, 5], "qsum": 25, "qmin": 5, "state": "pass", "dead": false, "hidden": true, "session": "C01", "date": "2026-09-18 19:03-21:10", "n": 5, "outliers": 0, "audioPeak": -10.5, "media": {"sheet": "media/0005/sheet.jpg", "strip": "media/0005/strip.jpg", "hands": "media/0005/hands.jpg", "closeup": "media/0005/closeup.jpg", "clip": "media/0005/clip.mp4"}}, {"id": "0006", "title": "SageAttention 2.2", "tagline": "Lossless-looking, but no real gain in render time", "name": "SageAttention 2.2 as the dense backend", "note": "at the edge of the +-2% noise floor; free and lossless-looking", "mech": "cheaper attention (kernel swap)", "family": "attention", "url": "https://github.com/woct0rdho/SageAttention", "steps": 6, "sampler": 43.3, "total": 54.9, "ctlTotal": 55.0, "ctlSampler": 45.6, "spd": 1.0018214936247722, "spdSampler": 1.0531177829099307, "q": [5, 5, 5, 5, 5], "qsum": 25, "qmin": 5, "state": "marginal", "dead": false, "hidden": false, "session": "C01", "date": "2026-09-18 19:03-21:10", "n": 5, "outliers": 0, "audioPeak": -12.7, "media": {"sheet": "media/0006/sheet.jpg", "strip": "media/0006/strip.jpg", "hands": "media/0006/hands.jpg", "closeup": "media/0006/closeup.jpg", "clip": "media/0006/clip.mp4"}}, {"id": "0020", "title": "Batched VAE decode", "tagline": "No effect on a 5090", "name": "Fast batched VAE decode (tile_batch 4)", "note": "No effect on a 5090: the node ran (its own log says 5.29-5.30 s warm) and the stock decode takes 5.3-5.4 s. Batching 28 serial tiles into 7 calls changes nothing, so H3's VAE decode is not tile-launch-bound. The author's README said the same on their GPU.", "mech": "non-sampler tail (VAE decode)", "family": "other", "url": "https://github.com/Mozer/ComfyUI-MiniMax-H3-MotionCache-FastVAE", "steps": 6, "sampler": 44.150000000000006, "total": 56.0, "ctlTotal": 55.8, "ctlSampler": 43.7, "spd": 0.9964285714285713, "spdSampler": 0.9898074745186862, "q": null, "qsum": null, "qmin": null, "state": "inert", "dead": true, "hidden": false, "session": "W2", "date": "2026-09-19 00:00-03:00", "n": 2, "outliers": 0, "audioPeak": null, "media": {}}, {"id": "0021", "title": "ComfyUI --fast flags", "tagline": "Slightly slower on an int8 model", "name": "--fast fp16_accumulation cublas_ops autotune", "note": "Slightly SLOWER (sampler 45.9 s vs 43.7). It does change numerics -- SSIM 0.983 against the reference, the only non-1.0 among the no-effect rows -- so it is doing something, just nothing useful: the model is int8 and these flags touch the bf16 remainder.", "mech": "launch flags", "family": "other", "url": "https://github.com/Comfy-Org/ComfyUI", "steps": 6, "sampler": 45.9, "total": 56.1, "ctlTotal": 55.8, "ctlSampler": 43.7, "spd": 0.9946524064171123, "spdSampler": 0.9520697167755993, "q": null, "qsum": null, "qmin": null, "state": "inert", "dead": true, "hidden": false, "session": "W2", "date": "2026-09-19 00:00-03:00", "n": 5, "outliers": 0, "audioPeak": -13.6, "media": {"sheet": "media/0021/sheet.jpg", "strip": "media/0021/strip.jpg", "hands": "media/0021/hands.jpg", "closeup": "media/0021/closeup.jpg", "clip": "media/0021/clip.mp4"}}, {"id": "0019a", "title": "MotionCache, default settings", "tagline": "Never fires at 6 steps", "name": "MotionCache at its default threshold (0.15)", "note": "0 of 6 reused on every seed -- the fourth cache in a row to be inert at its author's default. Its motion-weighted change score reads 0.50-0.59 per eligible step against a 0.15 threshold. Kept on the board because at 6 distilled steps this is the RULE, not an accident.", "mech": "reuse cache (motion-weighted)", "family": "cache", "url": "https://github.com/Mozer/ComfyUI-MiniMax-H3-MotionCache-FastVAE", "steps": 6, "sampler": 46.35, "total": 55.7, "ctlTotal": 55.8, "ctlSampler": 43.7, "spd": 1.0017953321364452, "spdSampler": 0.9428263214670982, "q": null, "qsum": null, "qmin": null, "state": "inert", "dead": true, "hidden": false, "session": "W2", "date": "2026-09-19 00:00-03:00", "n": 2, "outliers": 0, "audioPeak": null, "media": {}}, {"id": "0007", "title": "FastH3 V2, 8 steps", "tagline": "More steps cancel the gain", "name": "FastH3 V2, 8 steps, VSA", "note": "more steps cancel the VSA gain; audio ~9 dB hotter", "mech": "fewer steps (distillation) + sparse attention", "family": "steps", "url": "https://huggingface.co/FastVideo/FastVideo-FastH3-Comfy", "steps": 8, "sampler": 45.4, "total": 54.7, "ctlTotal": 55.0, "ctlSampler": 45.6, "spd": 1.0054844606946982, "spdSampler": 1.0044052863436124, "q": [4, 5, 4, 4, 4], "qsum": 21, "qmin": 4, "state": "nogain", "dead": true, "hidden": false, "session": "C01", "date": "2026-09-18 19:03-21:10", "n": 5, "outliers": 0, "audioPeak": -4.6, "media": {"sheet": "media/0007/sheet.jpg", "strip": "media/0007/strip.jpg", "hands": "media/0007/hands.jpg", "closeup": "media/0007/closeup.jpg", "clip": "media/0007/clip.mp4"}}, {"id": "0023", "title": "HyperFlow 8-step LoRA", "tagline": "Will not load in ComfyUI, and 8 steps is slower", "name": "HyperFlow 8-step LoRA", "note": "Cannot run here, and would be slower if it could. ComfyUI reported 'lora key not loaded' for ALL 632 tensors, so this render is the raw undistilled H3 at 8 steps with no LoRA applied. Its keys are diffusers-style (unfused attn.to_q/to_k/to_v) against ComfyUI's fused qkv_proj, and its endpoint_time_embedder -- the dual-time conditioning that IS the method -- has no counterpart in comfy/ldm/minimax/model.py. Separately, 8 steps against this baseline's 6 is a 0.75x ceiling before quality is even discussed.", "mech": "fewer steps (distillation)", "family": "steps", "url": "https://huggingface.co/videorebirth/hyperflow", "steps": 8, "sampler": 57.5, "total": 69.9, "ctlTotal": 55.8, "ctlSampler": 43.7, "spd": 0.798283261802575, "spdSampler": 0.76, "q": null, "qsum": null, "qmin": null, "state": "blocked", "dead": true, "hidden": false, "session": "W2", "date": "2026-09-19 00:00-03:00", "n": 2, "outliers": 0, "audioPeak": -16.2, "media": {"sheet": "media/0023/sheet.jpg", "strip": "media/0023/strip.jpg", "hands": "media/0023/hands.jpg", "closeup": "media/0023/closeup.jpg", "clip": "media/0023/clip.mp4"}}, {"id": "0009", "title": "VDN-H3", "tagline": "Strong stills, but over 2x slower", "name": "VDN-H3 ComfyUI port", "note": "eager PyTorch, 12.8 s/step; 5 s clips are its worst case -- retest at 15 s", "mech": "hybrid attention (trained linear branch)", "family": "attention", "url": "https://github.com/Saganaki22/ComfyUI-VDN-H3", "steps": 8, "sampler": 102.4, "total": 111.4, "ctlTotal": 55.0, "ctlSampler": 45.6, "spd": 0.49371633752244165, "spdSampler": 0.4453125, "q": [4, 5, 5, 5, 5], "qsum": 24, "qmin": 4, "state": "nogain", "dead": true, "hidden": false, "session": "C01", "date": "2026-09-18 19:03-21:10", "n": 5, "outliers": 0, "audioPeak": -6.3, "media": {"sheet": "media/0009/sheet.jpg", "strip": "media/0009/strip.jpg", "hands": "media/0009/hands.jpg", "closeup": "media/0009/closeup.jpg", "clip": "media/0009/clip.mp4"}}]};
+
+const STATES = {
+  pass:     { stamp: "Holds up",            legend: "Holds up: nothing rated below 4", ink: "var(--lime)" },
+  trade:    { stamp: "Trade-off",           legend: "Trade-off: faster, and you can see the cost", ink: "var(--amber)" },
+  marginal: { stamp: "No real gain",        legend: "Baseline, or no gain outside the noise", ink: "var(--steel)" },
+  baseline: { stamp: "Baseline" },
+  fail:     { stamp: "Breaks the picture", ink: "var(--brick)" },   // same red in the viewer as on the row
+  nogain:   { stamp: "No gain" },
+  inert:    { stamp: "No effect" },
+  blocked:  { stamp: "Can't run" },
+};
+const FAMS = [["all", "All"], ["steps", "Fewer steps"], ["calls", "Fewer model calls"], ["cache", "Caches"],
+              ["attention", "Cheaper attention"], ["tokens", "Fewer tokens"], ["other", "Other"]];
+const TABS = [["sheet", "Frames"], ["hands", "Arm-cross"], ["closeup", "Close-up"], ["clip", "Video"]];
+
+const $ = (s, r = document) => r.querySelector(s);
+const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const x = v => v == null ? "n/a" : v.toFixed(2) + "×";
+const dB = v => (Math.abs(v) < 0.05 ? "0" : (v < 0 ? "\u2212" : "+") + Math.abs(v).toFixed(1)) + " dB";
+const sound = v => (v > -0.5 ? "Sound distorts: peaks at " : "Sound runs hot: peaks at ") + dB(v);
+const secs = v => v == null ? "n/a" : v.toFixed(1) + " s";
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const ALL = [...DATA.rows, DATA.baseline];
+const BY_ID = Object.fromEntries(ALL.map(r => [r.id, r]));
+const DOMAIN = Math.max(...ALL.map(r => r.spd || 0)) * 1.5;      // fixed scale: bars never rescale between views
+
+const state = { view: "fastest", fam: "all", dead: false, adv: false, open: null, tab: "sheet", cmp: false };
+
+/* ---- URL: every view is a link ---------------------------------------------------------- */
+function readHash() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  if (["fastest", "quality", "balance"].includes(p.get("rank"))) state.view = p.get("rank");
+  if (FAMS.some(f => f[0] === p.get("how"))) state.fam = p.get("how");
+  state.dead = p.get("dead") === "1";
+  state.adv = p.get("adv") === "1";
+  state.open = BY_ID[p.get("open")] ? p.get("open") : null;
+}
+function writeHash() {
+  const p = new URLSearchParams();
+  if (state.view !== "fastest") p.set("rank", state.view);
+  if (state.fam !== "all") p.set("how", state.fam);
+  if (state.dead) p.set("dead", "1");
+  if (state.adv) p.set("adv", "1");
+  if (state.open) p.set("open", state.open);
+  const h = p.toString();
+  history.replaceState(null, "", h ? "#" + h : location.pathname + location.search);
+}
+
+/* ---- rows --------------------------------------------------------------------------------- */
+function pips(q) {
+  if (!q) return "";
+  const bars = q.map((v, i) => `<i data-v="${v}" style="height:${v * 20}%" title="${esc(DATA.meta.axes[i])}: ${v} of 5"></i>`).join("");
+  const label = q.map((v, i) => `${DATA.meta.axes[i]} ${v}`).join(", ");
+  return `<span class="rating"><span class="pips" role="img" aria-label="Still-frame ratings: ${esc(label)}">${bars}</span><span class="qsum">${q.reduce((a, b) => a + b, 0)}/25</span></span>`;
+}
+function detail(r) {
+  const specs = [
+    ["How it works", r.mech], ["Steps", r.steps],
+    ["Render", `${secs(r.total)} (baseline ${secs(r.ctlTotal)})`],
+    ["Sampler only", `${secs(r.sampler)} (${x(r.spdSampler)})`],
+    ["Runs", r.n ? `${r.n} clean${r.outliers ? `, ${r.outliers} outlier excluded` : ""}` : null],
+    ["Audio peak", r.audioPeak == null ? null : dB(r.audioPeak)],
+    ["Measured", (r.date || "").slice(0, 10)],
+  ].filter(s => s[1] != null && s[1] !== "");
+  return `<div class="detail"><div class="detail-in"><div class="detail-body cols">
+    <div><p class="config">${esc(r.name)}</p><p class="note">${esc(r.note)}</p>
+      ${r.url ? `<a class="get" href="${esc(r.url)}" target="_blank" rel="noopener">Where to get it <svg class="icon"><use href="#i-out"/></svg></a>` : ""}</div>
+    <dl class="specs">${specs.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+  </div></div></div>`;
+}
+function buildRow(r) {
+  const li = el("li", `row cols s-${r.state}${r.dead ? " dead" : ""}${r.hidden ? " old" : ""}`);
+  li.dataset.id = r.id;
+  const w = (r.spd || 0) / DOMAIN;
+  li.style.setProperty("--w", (w * 100).toFixed(3) + "%");
+  li.style.setProperty("--base", (1 / DOMAIN).toFixed(5));
+  // grow-from-baseline: hide the part of the bar beyond 1.00x, then reveal it
+  li.style.setProperty("--hide", r.spd > 1 ? ((1 - 1 / r.spd) * 100).toFixed(2) + "%" : "0%");
+  const hot = r.audioPeak != null && r.audioPeak > -3;
+  const strip = r.media.strip
+    ? `<button class="strip" aria-label="Open frames and clip: ${esc(r.title)}"><img src="${esc(r.media.strip)}" alt="" loading="lazy" width="904" height="171"></button>`
+    : `<div class="nostrip">no frames recorded</div>`;
+  li.innerHTML = `
+    <div class="who">
+      <h2 class="title">${esc(r.title)}</h2>
+      <p class="tagline">${esc(r.tagline)}</p>
+      <div class="marks">
+        <span class="stamp">${esc(STATES[r.state].stamp)}</span><span class="stamp answer">Fastest that holds up</span>
+        ${r.hidden ? `<span class="stamp was">Superseded</span>` : ""}
+        ${pips(r.q)}
+        ${hot ? `<span class="flag">${sound(r.audioPeak)}</span>` : ""}
+      </div>
+    </div>
+    <div class="track"><div class="bar"></div></div>
+    <div class="fig"><b>${x(r.spd)}</b><span>${secs(r.total)}</span></div>
+    ${strip}
+    ${detail(r)}`;
+  const btn = $(".strip", li);
+  if (btn) btn.addEventListener("click", () => openViewer(r.id));
+  return li;
+}
+
+const chart = $("#chart");
+const NODES = Object.fromEntries(ALL.map(r => [r.id, buildRow(r)]));
+
+function visible(r) {
+  if (r.id === "baseline") return true;
+  if (r.hidden && !state.adv) return false;
+  if (state.fam !== "all" && r.family !== state.fam) return false;
+  if (state.view === "balance") return r.state === "pass";      // the verdict decides, not the raw pips
+  return !r.dead || state.dead;
+}
+function order() {
+  const q = r => r.id === "baseline" ? 25 : (r.qsum ?? -1);
+  const bySpeed = (a, b) => (b.spd ?? -1) - (a.spd ?? -1);
+  return ALL.filter(visible).sort(state.view === "quality" ? (a, b) => q(b) - q(a) || bySpeed(a, b) : bySpeed);
+}
+
+/* Re-ranking is physical: rows glide to their new place, the baseline rule never moves. */
+function render(animate = true) {
+  const list = order();
+  const before = new Map();
+  for (const li of chart.children) if (!li.hidden) before.set(li.dataset.id, li.getBoundingClientRect().top);
+  const shown = new Set(list.map(r => r.id));
+  for (const r of ALL) NODES[r.id].hidden = !shown.has(r.id);
+  list.forEach(r => chart.appendChild(NODES[r.id]));
+  document.body.classList.toggle("adv", state.adv);
+
+  if (animate && !reduced) {
+    const trackW = $(".track", NODES.baseline).getBoundingClientRect().width;
+    let entering = 0;
+    for (const r of list) {
+      const li = NODES[r.id];
+      li.classList.remove("enter");
+      if (before.has(r.id)) {
+        const dy = before.get(r.id) - li.getBoundingClientRect().top;
+        if (Math.abs(dy) > 1) li.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }],
+                                         { duration: 620, easing: "cubic-bezier(.16,1,.3,1)" });
+      } else if (r.spd > 1) {
+        li.style.setProperty("--shift", (-(r.spd - 1) / DOMAIN * trackW).toFixed(1) + "px");
+        li.style.setProperty("--d", Math.min(entering++ * 45, 450) + "ms");
+        void li.offsetWidth;
+        li.classList.add("enter");
+        // Drop the class when it has played, so a reflow, print or screenshot can never replay it.
+        li.addEventListener("animationend", () => li.classList.remove("enter"), { once: true });
+      }
+    }
+  }
+  const answer = state.view === "fastest" ? list.find(r => r.state === "pass") : null;
+  for (const r of ALL) NODES[r.id].classList.toggle("is-answer", r === answer);
+  const n = list.length - 1;
+  $("#count").textContent = `${n} method${n === 1 ? "" : "s"}`;
+  $("#empty").hidden = n > 0;
+  if (n === 0) {
+    const deadHere = ALL.some(r => r.dead && (!r.hidden || state.adv) && (state.fam === "all" || r.family === state.fam));
+    const offerDead = state.view !== "balance" && !state.dead && deadHere;
+    $("#empty-why").textContent = offerDead ? "Everything measured in this group is a dead end."
+      : state.view === "balance" ? "Nothing in this group holds up yet." : "Nothing measured in this group yet.";
+    const act = $("#empty-act");
+    act.textContent = offerDead ? "Show dead ends" : "Show every group";
+    act.onclick = () => { if (offerDead) state.dead = true; else state.fam = "all"; render(); };
+  }
+  document.querySelectorAll(".preset").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === state.view));
+  document.querySelectorAll(".fam").forEach(b => b.setAttribute("aria-pressed", b.dataset.fam === state.fam));
+  $("#sw-dead").checked = state.dead; $("#sw-adv").checked = state.adv;
+  writeHash();
+}
+
+/* ---- viewer ------------------------------------------------------------------------------- */
+const viewer = $("#viewer"), stage = $("#stage");
+function figure(src, kind, label, cls) {
+  const f = el("figure");
+  if (kind === "clip") {
+    const v = el("video"); v.src = src; v.loop = true; v.playsInline = true; v.preload = "auto";
+    f.appendChild(v);
+  } else {
+    const i = el("img"); i.src = src; i.alt = label; f.appendChild(i);
+  }
+  if (label) f.appendChild(el("figcaption", cls, esc(label)));
+  return f;
+}
+function drawStage(play) {
+  const r = BY_ID[state.open], base = DATA.baseline, kind = state.tab;
+  stage.querySelectorAll("video").forEach(v => v.pause());
+  stage.innerHTML = "";
+  const paired = state.cmp && r.id !== "baseline" && base.media[kind];
+  // wide sheets stack; the close-up and the clip sit side by side
+  stage.className = "stage" + (paired ? (kind === "sheet" || kind === "hands" ? " stack" : " pair") : "");
+  stage.appendChild(figure(r.media[kind], kind, paired ? r.title : "", "me"));
+  if (paired) stage.appendChild(figure(base.media[kind], kind, "Baseline", "ref"));
+  if (kind === "clip") {
+    const [main, ref] = stage.querySelectorAll("video");
+    main.controls = true;
+    if (ref) {                                   // the baseline follows along, silently
+      ref.muted = true;
+      main.addEventListener("play", () => ref.play().catch(() => {}));
+      main.addEventListener("pause", () => ref.pause());
+      main.addEventListener("seeked", () => { ref.currentTime = main.currentTime; });
+      main.addEventListener("timeupdate", () => { if (Math.abs(ref.currentTime - main.currentTime) > .12) ref.currentTime = main.currentTime; });
+    }
+    if (play) main.play().catch(() => {});       // a tab click is a gesture, so sound is allowed
+  }
+  stage.scrollTop = 0;
+}
+function drawViewer(play = false) {
+  const r = BY_ID[state.open];
+  $("#v-title").textContent = r.title; $("#v-tag").textContent = r.tagline;
+  $("#v-num").textContent = x(r.spd);
+  const st = $("#v-stamp"); st.textContent = STATES[r.state].stamp; st.style.color = STATES[r.state].ink || "var(--faint)";
+  const tabs = $("#tabs"); tabs.innerHTML = "";
+  const have = TABS.filter(([k]) => r.media[k]);
+  if (!have.some(([k]) => k === state.tab)) state.tab = have[0][0];
+  for (const [k, label] of have) {
+    const b = el("button", "tab", label); b.setAttribute("role", "tab"); b.setAttribute("aria-selected", k === state.tab);
+    b.addEventListener("click", () => { state.tab = k; drawViewer(true); });
+    tabs.appendChild(b);
+  }
+  $("#cmp-wrap").hidden = r.id === "baseline";
+  $("#sw-cmp").checked = state.cmp;
+  drawStage(play && state.tab === "clip");
+}
+function openViewer(id) {
+  if (!BY_ID[id] || !TABS.some(([k]) => BY_ID[id].media[k])) return;
+  state.open = id; if (state.tab === "clip") state.tab = "sheet";
+  drawViewer(); if (!viewer.open) { viewer.showModal(); viewer.focus(); } writeHash();
+}
+function step(d) {
+  const ids = order().map(r => r.id).filter(id => TABS.some(([k]) => BY_ID[id].media[k]));
+  const i = ids.indexOf(state.open); if (i < 0) return;
+  state.open = ids[(i + d + ids.length) % ids.length]; drawViewer(state.tab === "clip"); writeHash();
+}
+viewer.addEventListener("close", () => { stage.querySelectorAll("video").forEach(v => v.pause()); stage.innerHTML = ""; state.open = null; writeHash(); });
+viewer.addEventListener("click", e => { if (e.target === viewer) viewer.close(); });
+viewer.addEventListener("keydown", e => {
+  if (e.target.tagName === "VIDEO" || e.target.tagName === "INPUT") return;
+  if (e.key === "ArrowLeft") step(-1); if (e.key === "ArrowRight") step(1);
+});
+$("#v-close").addEventListener("click", () => viewer.close());
+$("#v-prev").addEventListener("click", () => step(-1));
+$("#v-next").addEventListener("click", () => step(1));
+$("#sw-cmp").addEventListener("change", e => { state.cmp = e.target.checked; drawStage(state.tab === "clip"); });
+
+/* ---- chrome ------------------------------------------------------------------------------- */
+$("#headline").textContent = DATA.meta.headline.replace(/-/g, "‑");
+$("#lede").textContent = DATA.meta.lede;
+$("#facts").innerHTML = DATA.meta.setup.map(s => `<li>${esc(s)}</li>`).join("");
+$("#axes").textContent = DATA.meta.axes.map(a => a.toLowerCase()).join(", ");
+$("#legend").innerHTML = ["pass", "trade", "marginal"].map(k => `<span><i style="background:${STATES[k].ink}"></i>${esc(STATES[k].legend)}</span>`).join("")
+  + `<span><i style="border:1.5px solid var(--faint)"></i>Dead end: broke, did nothing, or could not run</span>`;
+$("#credit").innerHTML = `Measured on one machine, one row at a time. Updated ${esc(DATA.meta.generated)}.`
+  + (DATA.meta.repo ? ` <a href="${esc(DATA.meta.repo)}" target="_blank" rel="noopener">Method, raw data and reports</a>.` : "");
+$("#n-dead").textContent = ALL.filter(r => r.dead && !r.hidden).length;
+$("#ticks").innerHTML = [0.5, 1, 1.5].filter(t => t < DOMAIN).map(t =>
+  `<span class="${t === 1 ? "base" : ""}" style="left:${(t / DOMAIN * 100).toFixed(3)}%">${t === 1 ? "baseline 1.00×" : t.toFixed(1) + "×"}</span>`).join("");
+const fams = $("#fams");
+for (const [k, label] of FAMS) {
+  if (k !== "all" && !DATA.rows.some(r => r.family === k)) continue;
+  const b = el("button", "fam", label); b.dataset.fam = k;
+  b.addEventListener("click", () => { state.fam = k; render(); });
+  fams.appendChild(b);
+}
+document.querySelectorAll(".preset").forEach(b => b.addEventListener("click", () => { state.view = b.dataset.view; render(); }));
+$("#sw-dead").addEventListener("change", e => { state.dead = e.target.checked; render(); });
+$("#sw-adv").addEventListener("change", e => { state.adv = e.target.checked; render(); });
+addEventListener("hashchange", () => { readHash(); render(false); if (state.open) openViewer(state.open); else if (viewer.open) viewer.close(); });
+
+readHash();
+render();
+if (state.open) openViewer(state.open);
+</script>
+</body>
+</html>

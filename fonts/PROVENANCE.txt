@@ -1,0 +1,5 @@
+archivo-var-latin.woff2
+  Archivo (variable: wdth 62-125, wght 100-900), latin subset.
+  Omnibus-Type. SIL Open Font License 1.1 -- https://fonts.google.com/specimen/Archivo/license
+  Fetched 2026-09-19 from https://fonts.gstatic.com/s/archivo/v25/k3kQo8UDI-1M0wlSfdnoLg.woff2
+  Self-hosted so the published page makes no third-party requests.
