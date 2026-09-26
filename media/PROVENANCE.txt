@@ -1,7 +1,0 @@
-Every file here is evidence from one experiment of the MiniMax H3 speed-up research.
-  clip.mp4     the seed-1 render exactly as ComfyUI saved it (copied, never re-encoded)
-  sheet.jpg, hands.jpg, closeup.jpg, strip.jpg
-               frames extracted from that clip by research/tools/quality.py and re-encoded to JPEG;
-               each file also carries its origin as an embedded comment
-Nothing is retouched, upscaled or generated apart from the model output under test.
-Folder name = row id in research/results.json; 'baseline' is the control of the latest session.
