@@ -374,7 +374,7 @@ dialog::backdrop { background: rgba(15,15,15,.86); }
       <button class="preset" data-view="balance"><b>Best balance</b><span>fastest that holds up</span></button>
     </div>
     <div class="switches">
-      <label class="switch" title="Hide the LoRAs and distilled checkpoints; the scale re-fits to what is left"><input type="checkbox" id="sw-nolora"><i></i>Without LoRA</label>
+      <label class="switch" title="Hide the LoRAs and distilled models; the scale re-fits to what is left"><input type="checkbox" id="sw-nolora"><i></i>Without LoRA</label>
       <label class="switch"><input type="checkbox" id="sw-dead"><i></i>Dead ends <small id="n-dead"></small></label>
       <label class="switch"><input type="checkbox" id="sw-adv"><i></i>Detailed</label>
     </div>
@@ -439,7 +439,7 @@ const STATES = {
   inert:    { stamp: "No effect" },
   blocked:  { stamp: "Can't run" },
 };
-const FAMS = [["all", "All"], ["steps", "Fewer steps"], ["calls", "Fewer model calls"], ["cache", "Caches"],
+const FAMS = [["all", "All"], ["steps", "LoRAs & distilled"], ["calls", "Fewer model calls"], ["cache", "Caches"],
               ["attention", "Cheaper attention"], ["tokens", "Fewer tokens"], ["tail", "Faster decode"], ["other", "Other"]];
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -588,7 +588,7 @@ function buildRow(r) {
       ${head}
       <p class="tagline">${esc(r.tagline)}</p>
       <div class="marks">
-        <div><span class="stamp">${esc(STATES[r.state].stamp)}</span><span class="stamp answer">Fastest that holds up</span>${r.lora ? `<span class="stamp lora-tag" title="${esc(r.lora)}">LoRA</span>` : ""}${r.hidden ? `<span class="stamp was">Superseded</span>` : ""}</div>
+        <div><span class="stamp">${esc(STATES[r.state].stamp)}</span><span class="stamp answer">Fastest that holds up</span>${r.lora ? `<span class="stamp lora-tag" title="${esc(r.lora)}">${/^none:/.test(r.lora) ? "Distilled" : "LoRA"}</span>` : ""}${r.hidden ? `<span class="stamp was">Superseded</span>` : ""}</div>
         <div>${pips(r.q)}${r.source ? `<a class="src" href="${esc(r.url)}" target="_blank" rel="noopener" title="Where to get it: ${esc(r.url)}">${esc(r.source)} <svg class="icon"><use href="#i-out"/></svg></a>` : ""}</div>
       </div>
     </div>
