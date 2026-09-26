@@ -118,6 +118,7 @@ main { padding-block: 10px 56px; }
 .chart { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--gap); }
 .row { background: var(--slab); padding: 13px 18px; align-items: center; position: relative; row-gap: 0; }
 .row[hidden] { display: none; }
+[hidden] { display: none !important; }   /* the hidden attribute always wins over a component's display (e.g. .switch is inline-flex) */
 .title { margin: 0; font-size: 18px; font-weight: 650; font-stretch: 92%; line-height: 1.2; letter-spacing: .002em; }
 .tagline { margin: 2px 0 0; color: var(--dim); font-size: 14px; text-wrap: pretty; }
 /* A combination's title is its ingredients, one per line (the name stays for screen readers). */
@@ -178,14 +179,14 @@ main { padding-block: 10px 56px; }
 .s-fail { --c: transparent; } .s-fail .bar { border: 1.5px solid var(--brick); } .s-fail .stamp { color: var(--brick); }
 .s-baseline { --c: var(--steel); } .s-baseline .stamp { color: var(--steel); }
 .s-baseline { background: transparent; outline: 1px solid var(--rule); outline-offset: -1px; }
-/* Non-functional rows (was "dead ends") cancel, they do not vanish: hollow bar, struck name, dimmed frames. */
-.dead { --c: transparent; background: transparent; outline: 1px dashed var(--rule); outline-offset: -1px; }
-.dead .bar { border: 1.5px solid var(--faint); background: transparent; }
-.dead.s-fail .bar { border-color: var(--brick); }
+/* Non-functional rows (was "dead ends": did nothing, or could not run) cancel, they do not vanish: a solid brick bar
+   (user, 2026-09-27 -- the one place brick is a fill; a row that renders is never brick), struck name, dimmed frames.
+   A row that could not run has no time, so its bar is a short stub rather than nothing. */
+.dead { --c: var(--brick); background: transparent; outline: 1px dashed var(--rule); outline-offset: -1px; }
+.dead .bar { background: var(--c); border: 0; min-width: 8px; }
 .dead .title { text-decoration: line-through; text-decoration-color: var(--faint); text-decoration-thickness: 1.5px; color: var(--dim); }
 .dead .fig b { color: var(--dim); }
-.dead .stamp { color: var(--faint); }
-.dead.s-fail .stamp { color: var(--brick); }
+.dead .stamp { color: var(--brick); }
 .dead .strip img { filter: grayscale(.6) brightness(.8); }
 .dead .strip:hover img { filter: none; }
 .old .stamp.was { color: var(--faint); }
@@ -741,6 +742,11 @@ function chrome() {
   const nDead = T.rows.filter(r => onBoard(r) && r.dead && !r.hidden).length;
   $("#n-dead").textContent = nDead;
   $("#sw-dead").closest(".switch").hidden = nDead === 0;
+  $("#legend-dead").hidden = nDead === 0;   /* the footer key only when this board has one */
+  document.querySelectorAll("#legend [data-key]").forEach(k => {
+    k.hidden = !T.rows.some(r => onBoard(r) && !r.dead && (!r.hidden || state.adv) && r.state === k.dataset.key)
+      && !(k.dataset.key === "marginal" && T.baseline);   // "Baseline, or no gain..." always keys the baseline bar
+  });
   if (nDead === 0 && state.dead) state.dead = false;
   document.querySelectorAll(".preset").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === state.view));
   const fams = $("#fams"); fams.innerHTML = "";
@@ -941,8 +947,11 @@ $("#sw-wipe").addEventListener("change", e => { state.wipe = e.target.checked; d
 /* ---- chrome that never changes ---------------------------------------------------------------- */
 $("#headline").textContent = DATA.meta.headline.replace(/-/g, "‑");
 if (DATA.meta.baselineSetup) $("#lora").innerHTML = DATA.meta.baselineSetup;
-$("#legend").innerHTML = ["pass", "trade", "marginal", "slower"].map(k => `<span><i style="background:${STATES[k].ink}"></i>${esc(STATES[k].legend)}</span>`).join("")
-  + `<span><i style="border:1.5px solid var(--faint)"></i>Non-functional: did nothing, or could not run</span>`;
+/* each key swatch is drawn the way its bars are: "slower" bars are hollow, so is its swatch */
+const SWATCH = { slower: "border:1.5px solid var(--lime)" };
+/* keys start hidden; render() shows only the ones this board has rows for (the baseline key always) */
+$("#legend").innerHTML = ["pass", "trade", "marginal", "slower"].map(k => `<span data-key="${k}" hidden><i style="${SWATCH[k] || "background:" + STATES[k].ink}"></i>${esc(STATES[k].legend)}</span>`).join("")
+  + `<span id="legend-dead" hidden><i style="background:var(--brick)"></i>Non-functional: did nothing, or could not run</span>`;
 $("#credit").innerHTML = `Measured on one machine, one method at a time, each in a fresh ComfyUI. Updated ${esc(DATA.meta.generated)}.`
   + (DATA.meta.repo ? ` <a href="${esc(DATA.meta.repo)}" target="_blank" rel="noopener">Method, raw data and reports</a>.` : "")
   + (DATA.meta.goatcounter ? ` Visits are counted with GoatCounter: no cookies, nothing personal.` : "");
