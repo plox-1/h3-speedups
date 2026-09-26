@@ -440,7 +440,7 @@ const STATES = {
   blocked:  { stamp: "Can't run" },
 };
 const FAMS = [["all", "All"], ["steps", "LoRAs & distilled"], ["calls", "Fewer model calls"], ["cache", "Caches"],
-              ["attention", "Cheaper attention"], ["tokens", "Fewer tokens"], ["tail", "Faster decode"], ["other", "Other"]];
+              ["attention", "Attention backends"], ["tokens", "Custom samplers"], ["tail", "Faster decode"], ["other", "Other"]];
 
 const $ = (s, r = document) => r.querySelector(s);
 const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
