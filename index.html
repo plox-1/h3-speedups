@@ -590,7 +590,7 @@ function buildRow(r) {
       ${head}
       <p class="tagline">${esc(r.tagline)}</p>
       <div class="marks">
-        <div><span class="stamp">${esc(STATES[r.state].stamp)}</span><span class="stamp answer">Fastest that holds up</span>${r.lora ? `<span class="stamp lora-tag" title="${esc(r.lora)}">${/^none:/.test(r.lora) ? "Distilled" : "LoRA"}</span>` : ""}${r.hidden ? `<span class="stamp was">Superseded</span>` : ""}</div>
+        <div><span class="stamp">${esc(STATES[r.state].stamp)}</span><span class="stamp answer">Fastest that holds up</span>${r.lora ? (/^none:/.test(r.lora) ? `<span class="stamp lora-tag" title="Its own distilled checkpoint">Distilled</span>` : `<span class="stamp lora-tag" title="${esc(r.lora)}">LoRA</span>`) : ""}${r.hidden ? `<span class="stamp was">Superseded</span>` : ""}</div>
         <div>${pips(r.q)}${r.source ? `<a class="src" href="${esc(r.url)}" target="_blank" rel="noopener" title="Where to get it: ${esc(r.url)}">${esc(r.source)} <svg class="icon"><use href="#i-out"/></svg></a>` : ""}</div>
       </div>
     </div>
