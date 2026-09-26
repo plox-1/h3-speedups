@@ -106,8 +106,7 @@ main { padding-block: 10px 56px; }
 .row[hidden] { display: none; }
 .title { margin: 0; font-size: 18px; font-weight: 650; font-stretch: 92%; line-height: 1.2; letter-spacing: .002em; }
 .tagline { margin: 2px 0 0; color: var(--dim); font-size: 14px; text-wrap: pretty; }
-/* A combination's title is its ingredients, one per line; a named recipe (H3 Express) sits above them as a label. */
-.title.recipe { margin: 0 0 5px; font-size: 12px; font-weight: 750; font-stretch: 100%; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+/* A combination's title is its ingredients, one per line (the name stays for screen readers). */
 .combo { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .combo li { position: relative; padding-left: 15px; font-size: 16px; font-weight: 650; font-stretch: 92%; line-height: 1.22; }
 .combo li::before { content: ""; position: absolute; left: 1px; top: .5em; width: 6px; height: 6px; background: var(--faint); }
@@ -581,7 +580,7 @@ function buildRow(r) {
   const own = r.steps !== T.baseline.steps ? "own" : "";
   const combo = r.kind === "mix" && r.components && r.components.length;
   const head = combo
-    ? (r.recipe ? `<h2 class="title recipe">${esc(r.recipe)}</h2>` : `<h2 class="title sr">${esc(r.title)}</h2>`)
+    ? `<h2 class="title sr">${esc(r.title)}</h2>`      /* every combination reads the same: ingredients only (user, 2026-09-27) */
       + `<ul class="combo" aria-label="Made of">${r.components.map(c => `<li>${esc(c)}</li>`).join("")}</ul>`
     : `<h2 class="title">${esc(r.title)}</h2>`;
   li.innerHTML = `
