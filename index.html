@@ -234,7 +234,11 @@ a.part:hover, a.part:focus-visible { color: var(--lime); text-decoration-color: 
 .tip td { padding: 1px 0 1px 12px; text-align: right; white-space: nowrap; }
 .tip td.me { color: var(--lime); font-weight: 700; }
 .tip p { margin: 6px 0 0; color: var(--dim); max-width: 280px; }
-.detail-body .madeof { grid-column: 1; margin: 0; color: var(--dim); font-size: 13px; line-height: 1.6; }
+.detail-body .madeof { grid-column: 1; margin: 0; color: var(--dim); font-size: 13.5px; }
+.madeof p { margin: 0 0 7px; color: var(--faint); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.madeof ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.madeof li { display: grid; grid-template-columns: 3.3em 1fr; gap: 10px; align-items: baseline; line-height: 1.35; }
+.madeof .pspd { color: var(--ink); font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; }
 .detail-left { grid-column: 1; display: grid; gap: 12px; align-content: start; }
 .config { margin: 0 0 6px; font-weight: 600; font-size: 14px; }
 .note { margin: 0; color: var(--dim); font-size: 14px; max-width: 72ch; text-wrap: pretty; }
@@ -615,16 +619,14 @@ function detail(r) {
   const set = (r.settings || []).map(([k, v]) => `<div class="${v.length > 60 ? "wide" : ""}"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("");
   const text = r.detail || (base ? "" : r.tagline);
   /* each ingredient links to where it can be got, with its own speed-up on this tab when it has a row (user, 2026-09-27) */
-  const part = l => {
-    const inner = `${esc(l.name)}${l.spd ? ` <b>${x(l.spd)}</b>` : ""}`;
-    return l.url
-      ? `<a class="part" href="${esc(l.url)}" target="_blank" rel="noopener" title="Where to get it: ${esc(l.url)}">${inner} <svg class="icon"><use href="#i-out"/></svg></a>`
-      : l.soon ? `<span class="part soon" tabindex="0" title="${esc(l.soon)}">${inner} <em>coming soon</em></span>` : `<span class="part plain">${inner}</span>`;
-  };
+  /* one ingredient per line (user, 2026-09-27): its own speed-up in a right-aligned column, then the name as the link */
+  const part = l => `<li><b class="pspd">${l.spd ? x(l.spd) : ""}</b>${l.url
+      ? `<a class="part" href="${esc(l.url)}" target="_blank" rel="noopener" title="Where to get it: ${esc(l.url)}">${esc(l.name)} <svg class="icon"><use href="#i-out"/></svg></a>`
+      : l.soon ? `<span class="part soon" tabindex="0" title="${esc(l.soon)}">${esc(l.name)} <em>coming soon</em></span>` : `<span class="part plain">${esc(l.name)}</span>`}</li>`;
   const links = r.links || [];
   return `<div class="detail"><div class="detail-in"><div class="detail-body cols">
     <div class="detail-left"><p class="detail-text">${esc(text)}</p>
-    ${links.length ? `<p class="madeof">Its parts on their own: ${links.map(part).join(" · ")}</p>` : ""}</div>
+    ${links.length ? `<div class="madeof"><p>Its parts on their own</p><ul>${links.map(part).join("")}</ul></div>` : ""}</div>
     <dl class="settings">${set}</dl>
     <dl class="nodes" aria-label="Node settings">${nodes}</dl>
   </div></div></div>`;
