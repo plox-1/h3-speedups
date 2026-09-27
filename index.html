@@ -273,6 +273,9 @@ footer { border-top: 1px solid var(--rule); color: var(--dim); font-size: 14px; 
 dialog:focus { outline: none; }
 dialog { border: 0; padding: 0; color: var(--ink); background: var(--ground); width: min(1560px, 97vw); max-width: none; max-height: 96vh; overflow: hidden; box-shadow: 0 30px 80px -10px rgba(0,0,0,.7), 0 2px 8px rgba(0,0,0,.4); }
 dialog[open] { display: grid; grid-template-rows: auto auto minmax(0, 1fr); animation: lift .35s var(--ease); }
+/* Side by side (slider off), each clip gets half the width: widen the dialog until the two 7:4 clips fill the height
+   the stage allows (user, 2026-09-27: "see how much space there is"). 1.75 = 1344/768; 18px = the gap between them. */
+dialog:has(.stage.pair) { width: min(97vw, calc((96vh - 172px) * 3.5 + 18px)); }
 dialog::backdrop { background: rgba(15,15,15,.86); }
 @keyframes lift { from { opacity: 0; transform: translateY(14px); } }
 .v-head { display: flex; align-items: center; gap: 22px; padding: 14px 18px; border-bottom: 1px solid var(--rule); }
