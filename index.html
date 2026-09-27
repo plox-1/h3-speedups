@@ -253,7 +253,7 @@ footer { border-top: 1px solid var(--rule); color: var(--dim); font-size: 14px; 
 .foot { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px 48px; padding-block: 26px 44px; }
 .foot p { margin: 0; max-width: 58ch; text-wrap: pretty; }
 .foot b { color: var(--ink); font-weight: 600; }
-.legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; }
+.legend { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 10px; }   /* one key per line: keys come and go with the board, so a wrapping row paired them at random */
 .legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
 .legend i { width: 18px; height: 10px; display: block; }
 
