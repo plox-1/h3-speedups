@@ -236,8 +236,10 @@ a.part:hover, a.part:focus-visible { color: var(--lime); text-decoration-color: 
 .tip p { margin: 6px 0 0; color: var(--dim); max-width: 280px; }
 .detail-body .madeof { grid-column: 1; margin: 0; color: var(--dim); font-size: 13.5px; }
 .madeof p { margin: 0 0 7px; color: var(--faint); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.madeof ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.madeof li { display: grid; grid-template-columns: 3.3em 1fr; gap: 10px; align-items: baseline; line-height: 1.35; }
+/* one shared column for the speed-ups, as wide as the widest figure (subgrid), so the names get every spare pixel */
+.madeof ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 8px; }
+.madeof li { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: baseline; line-height: 1.35; }
+.madeof .nw, .part.soon em { white-space: nowrap; }
 .madeof .pspd { color: var(--ink); font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; }
 .detail-left { grid-column: 1; display: grid; gap: 12px; align-content: start; }
 .config { margin: 0 0 6px; font-weight: 600; font-size: 14px; }
@@ -620,8 +622,11 @@ function detail(r) {
   const text = r.detail || (base ? "" : r.tagline);
   /* each ingredient links to where it can be got, with its own speed-up on this tab when it has a row (user, 2026-09-27) */
   /* one ingredient per line (user, 2026-09-27): its own speed-up in a right-aligned column, then the name as the link */
+  /* the last word and the icon never part: if the line is too long, they wrap together (no orphaned arrow) */
+  const glue = (name, tail) => { const i = name.lastIndexOf(" ");
+    return `${esc(name.slice(0, i + 1))}<span class="nw">${esc(name.slice(i + 1))}${tail}</span>`; };
   const part = l => `<li><b class="pspd">${l.spd ? x(l.spd) : ""}</b>${l.url
-      ? `<a class="part" href="${esc(l.url)}" target="_blank" rel="noopener" title="Where to get it: ${esc(l.url)}">${esc(l.name)} <svg class="icon"><use href="#i-out"/></svg></a>`
+      ? `<a class="part" href="${esc(l.url)}" target="_blank" rel="noopener" title="Where to get it: ${esc(l.url)}">${glue(l.name, ` <svg class="icon"><use href="#i-out"/></svg>`)}</a>`
       : l.soon ? `<span class="part soon" tabindex="0" title="${esc(l.soon)}">${esc(l.name)} <em>coming soon</em></span>` : `<span class="part plain">${esc(l.name)}</span>`}</li>`;
   const links = r.links || [];
   return `<div class="detail"><div class="detail-in"><div class="detail-body cols">
