@@ -514,10 +514,10 @@ const x = v => v == null ? "n/a" : (v >= 10 ? v.toFixed(1) : v.toFixed(2)) + "×
 const secs = v => { if (v == null) return "n/a"; if (v < 90) return v.toFixed(1) + " s"; const s = Math.round(v); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// wipe defaults ON: the slider is how a row gets judged against the baseline, and side-by-side hides small
-// differences that a wipe over the same pixels makes obvious (rain on skin, pores).
+// The slider remembers one setting per kind (user, 2026-09-27): ON for the stills, where a wipe over the same pixels shows
+// small differences side by side hides (rain on skin, pores); OFF for the video, which plays best as two full clips.
 const state = { p: DATA.prompts[0].key, board: "methods", view: "fastest", fam: "all", dead: false, adv: false, nolora: false,
-                open: null, tab: "sheet", cmp: true, wipe: true };
+                open: null, tab: "sheet", cmp: true, wipe: { clip: false, img: true } };
 // Two boards share one chart: single methods, and mixes of them. The baseline sits on both.
 const homeBoard = r => r.kind === "mix" ? "mixes" : "methods";
 const onBoard = r => r.id === "baseline" || homeBoard(r) === state.board;
@@ -879,13 +879,15 @@ function wireWipeControls(main) {
   ["play", "pause", "volumechange"].forEach(e => main.addEventListener(e, paint));
   paint();
 }
+const wipeKey = () => state.tab === "clip" ? "clip" : "img";
+const wipeOn = () => state.wipe[wipeKey()];
 function drawStage(play) {
   const r = BY_ID[state.open], base = T.baseline, kind = state.tab;
   stage.querySelectorAll("video").forEach(v => v.pause());
   stage.innerHTML = "";
   const paired = state.cmp && r.id !== "baseline" && base.media[kind];
   // wide sheets stack; the close-up and the clip sit side by side
-  const wiping = paired && state.wipe;
+  const wiping = paired && wipeOn();
   stage.className = "stage" + (wiping ? " wiping" : paired ? (kind === "sheet" || kind === "hands" ? " stack" : " pair") : "");
   if (wiping) stage.appendChild(buildWipe(r, base, kind));
   else {
@@ -927,7 +929,7 @@ function drawViewer(play = false) {
   $("#wipe-wrap").hidden = r.id === "baseline";
   $("#wipe-wrap").setAttribute("aria-disabled", String(!canWipe));
   $("#sw-wipe").disabled = !canWipe;
-  $("#sw-wipe").checked = state.wipe && canWipe;
+  $("#sw-wipe").checked = wipeOn() && canWipe;
   drawStage(play && state.tab === "clip");
 }
 function openViewer(id) {
@@ -966,7 +968,7 @@ $("#v-close").addEventListener("click", () => viewer.close());
 $("#v-prev").addEventListener("click", () => step(-1));
 $("#v-next").addEventListener("click", () => step(1));
 $("#sw-cmp").addEventListener("change", e => { state.cmp = e.target.checked; drawViewer(state.tab === "clip"); });
-$("#sw-wipe").addEventListener("change", e => { state.wipe = e.target.checked; drawViewer(state.tab === "clip"); });
+$("#sw-wipe").addEventListener("change", e => { state.wipe[wipeKey()] = e.target.checked; drawViewer(state.tab === "clip"); });
 
 /* ---- chrome that never changes ---------------------------------------------------------------- */
 $("#headline").textContent = DATA.meta.headline.replace(/-/g, "‑");
