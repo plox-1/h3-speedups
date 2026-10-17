@@ -181,5 +181,17 @@ The clip of each row:
   0093h-5s         afefac63ff9a43d187bb5715.mp4  the render untouched, 4.3 MB
   0093i-15s        a0dbb7ae1ec9919e39b36db5.mp4  lighter copy, CQ 26, VMAF 98.0 (1st-percentile frame 92.0), 14.3 -> 8.2 MB
   0093i-5s         24dc8d634fa4bf5bd64270da.mp4  lighter copy, CQ 24, VMAF 98.8 (1st-percentile frame 92.6), 4.2 -> 2.9 MB
+  0094a-15s        7e946faba7233946a327c356.mp4  lighter copy, CQ 26, VMAF 98.6 (1st-percentile frame 91.2), 13.9 -> 7.9 MB
+  0094a-5s         94ba13054254da86c0476250.mp4  lighter copy, CQ 26, VMAF 98.5 (1st-percentile frame 91.3), 4.5 -> 2.4 MB
+  0094b-15s        b24f3e6bbc9b4344388600ef.mp4  lighter copy, CQ 26, VMAF 98.7 (1st-percentile frame 90.5), 14.5 -> 8.3 MB
+  0094b-5s         7968ff696ff8edf3f09e744d.mp4  lighter copy, CQ 28, VMAF 98.1 (1st-percentile frame 90.7), 4.5 -> 1.9 MB
+  0094c-5s         9f06e0aff579de4b401c2c80.mp4  the render untouched, 4.0 MB
+  0094d-5s         3de9cbbcd6252efe60746632.mp4  the render untouched, 3.9 MB
+  0094e-5s         db804acf28ca5748bf9f278d.mp4  the render untouched, 4.2 MB
+  0094f-5s         99a8bf7e6136675cc23e95c8.mp4  the render untouched, 4.6 MB
+  0094g-5s         776b97695dacf52409d2e317.mp4  lighter copy, CQ 24, VMAF 98.2 (1st-percentile frame 92.0), 4.0 -> 2.8 MB
+  0094h-5s         ea1aadd020feebd79c04d107.mp4  lighter copy, CQ 24, VMAF 98.6 (1st-percentile frame 91.4), 4.2 -> 3.0 MB
+  0094i-5s         403e97ce77129aaaed91dfde.mp4  the render untouched, 4.3 MB
+  0094j-5s         2ea025cabf8004535e9ce0d3.mp4  the render untouched, 4.3 MB
   baseline-15s     a8dc1f693099b315adf6e226.mp4  the render untouched, 6.9 MB
   baseline-5s      454d80c744bba2a1ad9745c5.mp4  the render untouched, 1.5 MB
