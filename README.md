@@ -12,9 +12,7 @@ Quality pips are an AI's rating of still frames against the same tab's baseline;
 **Live page: https://plox-1.github.io/h3-speedups/**
 
 Videos stream from the Hugging Face dataset https://huggingface.co/datasets/kipdg/h3-speedups-media (GitHub Pages' 1 GB
-limit cannot hold a growing video board). Each is the render itself or, where that is at least 15% smaller, a lighter H.264
-copy that scores VMAF 97.5 or more against the render (its 1st-percentile frame 90 or more). `media/PROVENANCE.txt` lists
-each row's clip.
+limit cannot hold a growing video board), exactly as ComfyUI rendered them. `media/PROVENANCE.txt` lists each row's clip.
 
 This repository is the generated site only (`index.html`, `media/` stills, `fonts/`). The previous board, which measured
 everything against a turbo-LoRA baseline, was retired on 2026-09-26; its history stays in this repository's commits.
