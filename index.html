@@ -520,7 +520,7 @@ const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 // The slider remembers one setting per kind (user, 2026-09-27): ON for the stills, where a wipe over the same pixels shows
 // small differences side by side hides (rain on skin, pores); OFF for the video, which plays best as two full clips.
 const state = { p: DATA.prompts[0].key, board: "methods", view: "fastest", fam: "all", dead: false, adv: false, nolora: false,
-                open: null, tab: "sheet", cmp: true, wipe: { clip: false, img: true } };
+                open: null, tab: "clip", cmp: true, wipe: { clip: false, img: true } };
 // Two boards share one chart: single methods, and mixes of them. The baseline sits on both.
 const homeBoard = r => r.kind === "mix" ? "mixes" : "methods";
 const onBoard = r => r.id === "baseline" || homeBoard(r) === state.board;
@@ -938,8 +938,9 @@ function drawViewer(play = false) {
 }
 function openViewer(id) {
   if (!BY_ID[id] || !TABS().some(([k]) => BY_ID[id].media[k])) return;
-  state.open = id; if (state.tab === "clip") state.tab = "sheet";
-  drawViewer(); if (!viewer.open) { viewer.showModal(); viewer.focus(); } writeHash();
+  // A row opens on its video, playing (user, 2026-10-18); a row without a clip falls back to its first view in drawViewer.
+  state.open = id; state.tab = "clip";
+  drawViewer(true); if (!viewer.open) { viewer.showModal(); viewer.focus(); } writeHash();
 }
 /* A part lives on the Methods board. Go there, make sure it is listed, and take the reader TO THE ROW -- its bar,
    its rating, its verdict in context. It must not pop the image viewer. */
